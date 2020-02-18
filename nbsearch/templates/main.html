@@ -1,0 +1,38 @@
+{% extends "page.html" %}
+
+{% block meta %}
+  <link rel="stylesheet" href="./static/css/main.css">
+  <script data-main="./static/js/main.js" src="./static/js/require.js"></script>
+{% end %}
+
+{% block site %}
+  <h1>Search Result</h1>
+  <div>
+    <span id="query"></span>
+    <i id="loading" style="display: none;" class="fas fa-spinner fa-pulse"></i>
+    <span id="error-connect" style="display: none;">ERROR</span>
+  </div>
+
+  <div>
+    <button class="btn btn-link prev-page"><i class="fas fa-angle-left"></i></button>
+    <button class="btn btn-link next-page"><i class="fas fa-angle-right"></i></button>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th scope="col">Path</th>
+        <th scope="col">Server</th>
+        <th scope="col">MTime</th>
+        <th scope="col">ATime</th>
+        <th scope="col"># of Cells</th>
+      </tr>
+    </thead>
+    <tbody id="result">
+    </tbody>
+  </table>
+  <div>
+    <button class="btn btn-link prev-page"><i class="fas fa-angle-left"></i></button>
+    <button class="btn btn-link next-page"><i class="fas fa-angle-right"></i></button>
+  </div>
+
+{% end %}
