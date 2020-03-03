@@ -29,6 +29,7 @@ define([
                         .append($('<td></td>').text(notebook['cells'].length));
                     tbody.append(tr);
                 });
+                $(`.${config.elemPrefix}page-number`).text(`${data.start}-${data.start + data.limit}`);
                 query.start = data.start.toString();
                 query.limit = data.limit.toString();
             })

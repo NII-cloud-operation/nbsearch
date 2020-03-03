@@ -19,6 +19,40 @@ define([
     const base_url = utils.get_body_data('baseUrl');
     search.init(`${base_url}${base_url.endsWith('/') ? '' : '/'}nbsearch`, 'nbsearch-');
 
+    let last_query = null;
+
+    function create_page_button() {
+        const prev_button = $('<button></button>')
+            .addClass('btn btn-link btn-xs')
+            .append($('<i></i>').addClass('fa fa-angle-left'));
+        prev_button.click(() => {
+            console.log(log_prefix, 'Previous', last_query);
+            const query = Object.assign({}, last_query);
+            if (parseInt(query.start) <= 0) {
+              return;
+            }
+            query.start = Math.min(parseInt(query.start) - parseInt(query.limit), 0).toString();
+            search.execute(query);
+            last_query = query;
+        });
+        const next_button = $('<button></button>')
+            .addClass('btn btn-link btn-xs')
+            .append($('<i></i>').addClass('fa fa-angle-right'));
+        next_button.click(() => {
+            console.log(log_prefix, 'Next', last_query);
+            const query = Object.assign({}, last_query);
+            query.start = (parseInt(query.start) + parseInt(query.limit)).toString();
+            search.execute(query);
+            last_query = query;
+        });
+        const page_number = $('<span></span>')
+            .addClass('nbsearch-page-number');
+        return $('<div></div>')
+            .append(prev_button)
+            .append(page_number)
+            .append(next_button);
+    }
+
     function create_ui() {
         const headers = ['Path', 'Server', 'MTime', 'ATime', '# of Cells'];
         const header_elems = headers.map(colname => $('<th></th>')
@@ -45,6 +79,7 @@ define([
             const query = { q: $('#nbsearch-query').val() };
             console.log(log_prefix, 'Search', query);
             search.execute(query);
+            last_query = query;
         });
 
         const toolbar = $('<div></div>')
@@ -62,7 +97,9 @@ define([
         return $('<div></div>')
             .append(error)
             .append(toolbar)
-            .append(list);
+            .append(create_page_button())
+            .append(list)
+            .append(create_page_button());
     }
 
     function insert_tab() {
