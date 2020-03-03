@@ -16,10 +16,55 @@ define([
     const mod_name = 'nbsearch';
     const log_prefix = '[' + mod_name + ']';
 
-    const base_url = utils.get_body_data('baseUrl');
-    search.init(`${base_url}${base_url.endsWith('/') ? '' : '/'}nbsearch`, 'nbsearch-');
-
     let last_query = null;
+    let base_href = null;
+
+    function get_api_base_url() {
+        const base_url = utils.get_body_data('baseUrl');
+        return `${base_url}${base_url.endsWith('/') ? '' : '/'}nbsearch`;
+    }
+
+    function get_base_path() {
+        const firstHref = window.location.href.split(/[?#]/)[0];
+        const notebookPath = utils.get_body_data('notebookPath');
+        console.log(log_prefix, 'URL: windown.location.href=' + firstHref +
+                    ', notebookPath=' + notebookPath);
+        const decodedHref = decodeURI(firstHref);
+        const last = decodedHref.substring(decodedHref.length - notebookPath.length);
+        if (last != notebookPath) {
+            console.error(log_prefix, 'Unexpected path: ' + last +
+                          ' (Expected: ' + notebookPath + ')');
+            return null;
+        }
+        const encodedPath = encodeURI(notebookPath);
+        return firstHref.substring(0, firstHref.length - encodedPath.length);
+    }
+
+    function create_link(notebook) {
+        const loading_indicator = $('<i></i>')
+            .attr('style', 'display: none;')
+            .addClass('fa fa-spinner fa-pulse');
+        const button = $('<button></button>').addClass('btn btn-link');
+        button.click(() => {
+            loading_indicator.show();
+            const current_href = window.location.href.split(/[?#]/)[0];
+            let path = current_href.substring(base_href.length);
+            if (path.length > 0 && !path.startsWith('/')) {
+                path = `/${path}`;
+            }
+            console.log(log_prefix, 'Destination', path);
+            var jqxhr = $.getJSON(`${get_api_base_url()}/v1/import${path}/${notebook.id}`)
+                .done(data => {
+                    console.log('Imported', data);
+                    loading_indicator.hide();
+                })
+                .fail(() => {
+                    loading_indicator.hide();
+                    $('#nbsearch-error-import').show();
+                });
+        });
+        return button.text(notebook['path']).append(loading_indicator);
+    }
 
     function create_page_button() {
         const prev_button = $('<button></button>')
@@ -131,6 +176,9 @@ define([
     }
 
     function load_ipython_extension() {
+        base_href = get_base_path();
+        search.init(get_api_base_url(), 'nbsearch-', create_link);
+
         $('<link>')
             .attr('rel', 'stylesheet')
             .attr('type', 'text/css')

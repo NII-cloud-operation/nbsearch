@@ -11,7 +11,7 @@ from motor import motor_tornado
 
 
 class SearchHandler(tornado.web.RequestHandler):
-    def initialize(self, database, collection):
+    def initialize(self, database, collection, base_dir):
         self.collection = collection
 
     async def get(self):
@@ -67,7 +67,7 @@ class SearchHandler(tornado.web.RequestHandler):
 
 
 class DownloadHandler(tornado.web.RequestHandler):
-    def initialize(self, database, collection):
+    def initialize(self, database, collection, base_dir):
         self.database = database
         self.collection = collection
 
@@ -81,3 +81,44 @@ class DownloadHandler(tornado.web.RequestHandler):
         self.set_header('Content-Type', 'application/json; charset=utf-8')
         await fs.download_to_stream(file_id, self)
         self.finish()
+
+
+class ImportHandler(tornado.web.RequestHandler):
+    def initialize(self, database, collection, base_dir):
+        self.database = database
+        self.collection = collection
+        self.base_dir = base_dir
+
+    def _has_special(self, path):
+        if '/' not in path:
+            return path == '..' or path == '.'
+        parent, target = os.path.split(path)
+        if target == '..' or target == '.':
+            return True
+        return self._has_special(parent)
+
+    def _unique_filename(self, path, filename):
+        if not os.path.exists(os.path.join(self.base_dir, path, filename)):
+            return filename
+        base_filename, ext = os.path.splitext(filename)
+        index = 1
+        alt_filename = '{} ({}){}'.format(base_filename, index, ext)
+        while os.path.exists(os.path.join(self.base_dir, path, alt_filename)):
+            index += 1
+            alt_filename = '{} ({}){}'.format(base_filename, index, ext)
+        return alt_filename
+
+    async def get(self, path, id):
+        fs = motor_tornado.MotorGridFSBucket(self.database)
+        file_id = ObjectId(id)
+        notebook = await self.collection.find_one({'_id': file_id})
+        filename = os.path.basename(notebook['path'])
+        if path is not None and path.startswith('/'):
+            path = path[1:]
+        if path is not None and self._has_special(path):
+            raise tornado.web.HTTPError(400)
+        path = path if path is not None else '.'
+        filename = self._unique_filename(path, filename)
+        with open(os.path.join(self.base_dir, path, filename), 'wb') as f:
+            await fs.download_to_stream(file_id, f)
+        self.write({'filename': filename})

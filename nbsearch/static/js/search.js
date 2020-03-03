@@ -5,9 +5,15 @@ define([
 ) {
     const config = { urlPrefix: '', elemPrefix: '' };
 
-    function init(urlPrefix, elemPrefix) {
+    function init(urlPrefix, elemPrefix, createLink) {
         config.urlPrefix = urlPrefix;
         config.elemPrefix = elemPrefix;
+        config.createLink = createLink;
+    }
+
+    function _createLink(notebook) {
+        return $('<a></a>')
+            .attr('href', `${config.urlPrefix}/v1/download/${notebook.id}`).text(notebook['path']);
     }
 
     function execute(query) {
@@ -18,11 +24,11 @@ define([
                 $(`#${config.elemPrefix}loading`).hide();
                 const tbody = $(`#${config.elemPrefix}result`);
                 tbody.empty();
+
+                const createLink = config.createLink || _createLink;
                 data.notebooks.forEach(notebook => {
-                    const link = $('<a></a>')
-                        .attr('href', `${config.urlPrefix}/v1/download/${notebook.id}`).text(notebook['path']);
                     const tr = $('<tr></tr>')
-                        .append($('<td></td>').append(link))
+                        .append($('<td></td>').append(createLink(notebook)))
                         .append($('<td></td>').text(notebook['server']))
                         .append($('<td></td>').text(notebook['mtime']))
                         .append($('<td></td>').text(notebook['atime']))
