@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 import os
 
 from tornado import gen
@@ -31,7 +32,26 @@ class SearchHandler(tornado.web.RequestHandler):
             return value.isoformat()
         return value
 
+    def _get_base_query(self, q):
+        assert len(q) == 2
+        k, v = tuple(q)
+        if k == 'meme':
+            return {'cells.metadata.lc_cell_meme.current': v}
+        else:
+            return {'$text': {'$search': v}}
+
+    def _get_and_query(self, qs):
+        if len(qs) == 0:
+            return self._get_base_query(qs[0])
+        return {'$and': [self._get_base_query(q) for q in qs]}
+
     def _get_mongo_query(self):
+        qs = self.get_query_argument('qs', None)
+        if qs is not None:
+            qsobj = json.loads(qs)
+            if len(qsobj) == 1:
+                return self._get_and_query(qsobj[0])
+            return {'$or': [self._get_and_query(q) for q in qsobj]}
         meme = self.get_query_argument('meme', None)
         if meme is not None:
             return {'cells.metadata.lc_cell_meme.current': meme}

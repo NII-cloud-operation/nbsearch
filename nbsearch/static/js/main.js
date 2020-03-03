@@ -9,11 +9,12 @@ define([
 ) {
   const log_prefix = '[nbsearch]';
   const url = new URL(window.location);
+  const qs = url.searchParams.get('qs');
   const q = url.searchParams.get('q');
   const meme = url.searchParams.get('meme');
-  console.log(log_prefix, 'Loaded', q, meme);
+  console.log(log_prefix, 'Loaded', qs, q, meme);
 
-  const query = q != null ? { q } : { meme };
+  const query = qs != null ? { qs } : (q != null ? { q } : { meme });
   const start = url.searchParams.get('start');
   const limit = url.searchParams.get('limit');
   if (start) {
@@ -23,7 +24,7 @@ define([
     query.limit = limit;
   }
 
-  $('#query').text(q != null ? `Query: ${q}` : `MEME: ${meme}`);
+  $('#query').text(qs != null ? `Composite: ${qs}` : (q != null ? `Query: ${q}` : `MEME: ${meme}`));
   search.execute(query);
 
   $('.prev-page').click(() => {
