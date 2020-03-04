@@ -18,6 +18,7 @@ define([
 
     let last_query = null;
     let base_href = null;
+    const diff_selected = {};
 
     function get_api_base_url() {
         const base_url = utils.get_body_data('baseUrl');
@@ -40,10 +41,39 @@ define([
         return firstHref.substring(0, firstHref.length - encodedPath.length);
     }
 
+    function get_diff_hanlder(checkbox, notebook) {
+        return () => {
+            if (checkbox.is(':checked')) {
+                diff_selected[notebook.id] = notebook;
+            } else {
+                diff_selected[notebook.id] = null;
+            }
+            const notebooks = Object.entries(diff_selected).filter(v => v[1] !== null).map(v => v[1]);
+            $('.nbsearch-diff-button').prop('disabled', notebooks.length == 0);
+        };
+    }
+
+    function prepare_notebook(path, notebook) {
+      return new Promise((resolve, reject) => {
+          $.getJSON(`${get_api_base_url()}/v1/import${path}/${notebook.id}`)
+              .done(data => {
+                  resolve(data);
+              })
+              .fail(() => {
+                  reject();
+              });
+      });
+    }
+
     function create_link(notebook) {
         const loading_indicator = $('<i></i>')
             .attr('style', 'display: none;')
             .addClass('fa fa-spinner fa-pulse');
+        const checkbox = $('<input></input>')
+            .attr('type', 'checkbox')
+            .addClass('nbsearch-diff');
+        checkbox.change(get_diff_hanlder(checkbox, notebook));
+
         const button = $('<button></button>').addClass('btn btn-link');
         button.click(() => {
             loading_indicator.show();
@@ -53,17 +83,19 @@ define([
                 path = `/${path}`;
             }
             console.log(log_prefix, 'Destination', path);
-            var jqxhr = $.getJSON(`${get_api_base_url()}/v1/import${path}/${notebook.id}`)
-                .done(data => {
+            prepare_notebook(path, notebook)
+                .then(data => {
                     console.log('Imported', data);
                     loading_indicator.hide();
                 })
-                .fail(() => {
+                .catch(err => {
                     loading_indicator.hide();
                     $('#nbsearch-error-import').show();
                 });
         });
-        return button.text(notebook['path']).append(loading_indicator);
+        return $('<span></span>')
+            .append(checkbox)
+            .append(button.text(notebook['path']).append(loading_indicator));
     }
 
     function create_page_button() {
@@ -90,12 +122,33 @@ define([
             search.execute(query);
             last_query = query;
         });
+
+        const diff_button = $('<button></button>')
+            .addClass('btn btn-default btn-xs nbsearch-diff-button')
+            .prop('disabled', true).text('Diff');
+        diff_button.click(() => {
+            const notebooks = Object.entries(diff_selected).filter(v => v[1] !== null).map(v => v[1]);
+            console.log(notebooks);
+            const promises = notebooks.map(notebook => {
+                return prepare_notebook('/nbsearch-tmp', notebook);
+            });
+            Promise.all(promises)
+                .then(values => {
+                    console.log('NBSearch', values);
+                    // TODO: Open Diff
+                })
+                .catch(err => {
+                    console.log(err);
+                });
+        });
+
         const page_number = $('<span></span>')
             .addClass('nbsearch-page-number');
         return $('<div></div>')
             .append(prev_button)
             .append(page_number)
-            .append(next_button);
+            .append(next_button)
+            .append(diff_button);
     }
 
     function create_ui() {
