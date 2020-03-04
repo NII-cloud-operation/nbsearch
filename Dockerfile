@@ -16,4 +16,5 @@ RUN mkdir -p /home/$NB_USER/.nbsearch && \
 RUN jupyter nbextensions_configurator enable --user && \
     jupyter nbextension install --py --user nbsearch && \
     jupyter serverextension enable --py --user nbsearch && \
-    jupyter nbextension enable --py --user nbsearch
+    jupyter nbextension enable --py --user nbsearch && \
+    jupyter nbextension enable --py --user lc_notebook_diff
