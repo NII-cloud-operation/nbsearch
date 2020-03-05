@@ -18,7 +18,7 @@ define([
 
     let last_query = null;
     let base_href = null;
-    const diff_selected = {};
+    let diff_selected = {};
 
     function get_api_base_url() {
         const base_url = utils.get_body_data('baseUrl');
@@ -111,6 +111,7 @@ define([
             query.start = Math.min(parseInt(query.start) - parseInt(query.limit), 0).toString();
             search.execute(query);
             last_query = query;
+            diff_selected = {};
         });
         const next_button = $('<button></button>')
             .addClass('btn btn-link btn-xs')
@@ -121,6 +122,7 @@ define([
             query.start = (parseInt(query.start) + parseInt(query.limit)).toString();
             search.execute(query);
             last_query = query;
+            diff_selected = {};
         });
 
         const diff_button = $('<button></button>')
@@ -134,8 +136,14 @@ define([
             });
             Promise.all(promises)
                 .then(values => {
-                    console.log('NBSearch', values);
-                    // TODO: Open Diff
+                    // Open Diff
+                    values.forEach((status, index) => {
+                        $(`#diff-file${index}`).val(`nbsearch-tmp/${status.filename}`);
+                    });
+                    $('a[href="#notebook_diff"]').click();
+                    setTimeout(() => {
+                        $('#diff-search').click();
+                    }, 10);
                 })
                 .catch(err => {
                     console.log(err);
@@ -178,6 +186,7 @@ define([
             console.log(log_prefix, 'Search', query);
             search.execute(query);
             last_query = query;
+            diff_selected = {};
         });
 
         const toolbar = $('<div></div>')
