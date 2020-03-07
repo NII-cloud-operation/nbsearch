@@ -72,7 +72,7 @@ class DownloadHandler(tornado.web.RequestHandler):
         self.collection = collection
 
     async def get(self, id):
-        fs = motor_tornado.MotorGridFSBucket(self.database)
+        fs = self._get_fs()
         file_id = ObjectId(id)
         notebook = await self.collection.find_one({'_id': file_id})
         filename = os.path.basename(notebook['path'])
@@ -82,6 +82,9 @@ class DownloadHandler(tornado.web.RequestHandler):
         await fs.download_to_stream(file_id, self)
         self.finish()
 
+    def _get_fs(self):
+        return motor_tornado.MotorGridFSBucket(self.database)
+
 
 class ImportHandler(tornado.web.RequestHandler):
     def initialize(self, database, collection, base_dir):
@@ -90,6 +93,8 @@ class ImportHandler(tornado.web.RequestHandler):
         self.base_dir = base_dir
 
     def _has_special(self, path):
+        if path == '/' or path == '':
+            return False
         if '/' not in path:
             return path == '..' or path == '.'
         parent, target = os.path.split(path)
@@ -109,12 +114,14 @@ class ImportHandler(tornado.web.RequestHandler):
         return alt_filename
 
     async def get(self, path, id):
-        fs = motor_tornado.MotorGridFSBucket(self.database)
+        fs = self._get_fs()
         file_id = ObjectId(id)
         notebook = await self.collection.find_one({'_id': file_id})
         filename = os.path.basename(notebook['path'])
         if path is not None and path.startswith('/'):
             path = path[1:]
+        if path is not None and path.startswith('/'):
+            raise tornado.web.HTTPError(400)
         if path is not None and self._has_special(path):
             raise tornado.web.HTTPError(400)
         path = path if path is not None else '.'
@@ -122,3 +129,6 @@ class ImportHandler(tornado.web.RequestHandler):
         with open(os.path.join(self.base_dir, path, filename), 'wb') as f:
             await fs.download_to_stream(file_id, f)
         self.write({'filename': filename})
+
+    def _get_fs(self):
+        return motor_tornado.MotorGridFSBucket(self.database)

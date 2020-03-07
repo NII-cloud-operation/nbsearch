@@ -19,7 +19,7 @@ DEFAULT_TEMPLATE_PATH_LIST = [
 ]
 
 
-def get_api_handlers(parent_app, base_dir):
+def get_api_handler_settings(parent_app, base_dir):
     dbconfig = NBSearchDB(parent=parent_app)
     db = dbconfig.get_database()
 
@@ -27,17 +27,21 @@ def get_api_handlers(parent_app, base_dir):
     handler_settings['database'] = db
     handler_settings['collection'] = db[dbconfig.collection]
     handler_settings['base_dir'] = base_dir
+    return handler_settings
 
+
+def get_api_handlers(handler_settings):
     return [
         (r"/v1/search", SearchHandler, handler_settings),
         (r"/v1/download/(?P<id>[^\/]+)", DownloadHandler, handler_settings),
-        (r"/v1/import(?P<path>/.+)?/(?P<id>[^\/]+)", ImportHandler, handler_settings),
+        (r"/v1/import(?P<path>/.*)?/(?P<id>[^\/]+)", ImportHandler, handler_settings),
     ]
 
 
 def register_routes(nb_server_app, web_app):
     from notebook.utils import url_path_join
-    api_handlers = get_api_handlers(nb_server_app, nb_server_app.notebook_dir)
+    api_handler_settings = get_api_handler_settings(nb_server_app, nb_server_app.notebook_dir)
+    api_handlers = get_api_handlers(api_handler_settings)
 
     host_pattern = '.*$'
     handlers = [(url_path_join(web_app.settings['base_url'], 'nbsearch', path),
@@ -54,7 +58,8 @@ class ServerApp(tornado.web.Application):
         settings['static_path'] = DEFAULT_STATIC_FILES_PATH
         settings['template_path'] = DEFAULT_TEMPLATE_PATH_LIST[-1]
 
-        handlers = get_api_handlers(nbsearch_app, '.') + [
+        api_handler_settings = get_api_handler_settings(nbsearch_app, '.')
+        handlers = get_api_handlers(api_handler_settings) + [
             (r"/", MainHandler),
             (r"/static/(.*)", tornado.web.StaticFileHandler)
         ]
