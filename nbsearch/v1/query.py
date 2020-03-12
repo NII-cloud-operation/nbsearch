@@ -15,7 +15,6 @@ def nq_from_meme(meme):
     }
 
 async def mongo_target_query_from_nq(nq_target, history):
-    assert 'type' not in nq_target or nq_target['type'] == 'all'
     cond = {}
     if 'text' in nq_target:
         cond['$text'] = {'$search': nq_target['text']}
@@ -57,10 +56,9 @@ def mongo_cell_query_element_from_nq(match):
     }
 
 def mongo_cell_query_from_nq(nq_cell):
-    assert 'type' not in nq_cell or nq_cell['type'] in ['and', 'or']
-    cond = '$and' if 'type' not in nq_cell else '${}'.format(nq_cell['type'])
+    cond = '$and' if 'and' in nq_cell else '$or'
     matches = []
-    for m in nq_cell['match']:
+    for m in nq_cell['and'] if 'and' in nq_cell else nq_cell['or']:
         matches.append(mongo_cell_query_element_from_nq(m))
     return {cond: matches}
 
