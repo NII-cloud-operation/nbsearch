@@ -7,6 +7,7 @@ from .db import NBSearchDB
 from .handlers import (MainHandler)
 from .v1.handlers import (
     SearchHandler,
+    HistoryHandler,
     DownloadHandler,
     ImportHandler
 )
@@ -26,10 +27,12 @@ def get_api_handlers(parent_app, base_dir):
     handler_settings = {}
     handler_settings['database'] = db
     handler_settings['collection'] = db[dbconfig.collection]
+    handler_settings['history'] = db[dbconfig.history]
     handler_settings['base_dir'] = base_dir
 
     return [
         (r"/v1/search", SearchHandler, handler_settings),
+        (r"/v1/history", HistoryHandler, handler_settings),
         (r"/v1/download/(?P<id>[^\/]+)", DownloadHandler, handler_settings),
         (r"/v1/import(?P<path>/.+)?/(?P<id>[^\/]+)", ImportHandler, handler_settings),
     ]

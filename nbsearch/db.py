@@ -15,7 +15,9 @@ class NBSearchDB(Configurable):
 
     database = Unicode('nbsearch', help='The database on MongoDB').tag(config=True)
 
-    collection = Unicode('notebooks', help='The collection on database').tag(config=True)
+    collection = Unicode('notebooks', help='The collection of notebooks').tag(config=True)
+
+    history = Unicode('history', help='The collection of history').tag(config=True)
 
     def get_database(self):
         client = motor.motor_tornado.MotorClient(self.hostname, self.port,

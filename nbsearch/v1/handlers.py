@@ -3,6 +3,7 @@ import json
 import os
 
 from tornado import gen
+import tornado.escape
 import tornado.ioloop
 import tornado.web
 
@@ -12,10 +13,25 @@ from motor import motor_tornado
 from . import query
 
 
-class SearchHandler(tornado.web.RequestHandler):
-    def initialize(self, database, collection, base_dir):
+class BaseHandler(tornado.web.RequestHandler):
+    def initialize(self, database, collection, history, base_dir):
         self.collection = collection
+        self.history = history
 
+    def _get_nq(self):
+        nq = self.get_query_argument('nq', None)
+        if nq is not None:
+            return json.loads(nq)
+        meme = self.get_query_argument('meme', None)
+        if meme is not None:
+            return query.nq_from_meme(meme)
+        q = self.get_query_argument('q', None)
+        if q is not None:
+            return query.nq_from_q(q)
+        return None
+
+
+class SearchHandler(BaseHandler):
     async def get(self):
         start, limit = self._get_page()
         nq = self._get_nq()
@@ -45,26 +61,51 @@ class SearchHandler(tornado.web.RequestHandler):
             return value.isoformat()
         return value
 
-    def _get_nq(self):
-        nq = self.get_query_argument('nq', None)
-        if nq is not None:
-            return json.loads(nq)
-        meme = self.get_query_argument('meme', None)
-        if meme is not None:
-            return query.nq_from_meme(meme)
-        q = self.get_query_argument('q', None)
-        if q is not None:
-            return query.nq_from_q(q)
-        return None
-
     def _get_page(self):
         start = self.get_query_argument('start', '0')
         limit = self.get_query_argument('limit', '50')
         return int(start), int(limit)
 
 
+class HistoryHandler(BaseHandler):
+    async def get(self):
+        nq = self._get_nq()
+        mongo_q = self.history.find()
+        notebooks = []
+        async for doc in mongo_q:
+            notebooks.append({
+                'id': str(doc['_id']),
+                'text': doc['text']
+            })
+        resp = {
+            'histories': notebooks,
+        }
+        self.write(resp)
+
+    async def put(self):
+        json_data = tornado.escape.json_decode(self.request.body)
+        nq = self._get_nq()
+        agg_q = query.mongo_agg_query_from_nq(nq)
+        if len(agg_q) == 1 and '$match' in agg_q[0]:
+            mongo_q = self.collection.find(agg_q[0]['$match'])
+        else:
+            mongo_q = self.collection.aggregate(agg_q)
+        notebook_ids = []
+        async for doc in mongo_q:
+            notebook_ids.append(str(doc['_id']))
+        await self.history.insert_one({
+            'text': json_data['name'],
+            'notebook_ids': notebook_ids
+        })
+        resp = {
+            'notebook_ids': notebook_ids,
+            'nq': nq
+        }
+        self.write(resp)
+
+
 class DownloadHandler(tornado.web.RequestHandler):
-    def initialize(self, database, collection, base_dir):
+    def initialize(self, database, collection, history, base_dir):
         self.database = database
         self.collection = collection
 
@@ -81,7 +122,7 @@ class DownloadHandler(tornado.web.RequestHandler):
 
 
 class ImportHandler(tornado.web.RequestHandler):
-    def initialize(self, database, collection, base_dir):
+    def initialize(self, database, collection, history, base_dir):
         self.database = database
         self.collection = collection
         self.base_dir = base_dir
