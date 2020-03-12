@@ -35,7 +35,7 @@ class SearchHandler(BaseHandler):
     async def get(self):
         start, limit = self._get_page()
         nq = self._get_nq()
-        agg_q = query.mongo_agg_query_from_nq(nq)
+        agg_q = await query.mongo_agg_query_from_nq(nq, self.history)
         if len(agg_q) == 1 and '$match' in agg_q[0]:
             mongo_q = self.collection.find(agg_q[0]['$match'])
         else:
@@ -75,7 +75,8 @@ class HistoryHandler(BaseHandler):
         async for doc in mongo_q:
             notebooks.append({
                 'id': str(doc['_id']),
-                'text': doc['text']
+                'text': doc['text'],
+                'notebooks': None if 'notebook_ids' not in doc else len(doc['notebook_ids'])
             })
         resp = {
             'histories': notebooks,
@@ -85,7 +86,7 @@ class HistoryHandler(BaseHandler):
     async def put(self):
         json_data = tornado.escape.json_decode(self.request.body)
         nq = self._get_nq()
-        agg_q = query.mongo_agg_query_from_nq(nq)
+        agg_q = await query.mongo_agg_query_from_nq(nq, self.history)
         if len(agg_q) == 1 and '$match' in agg_q[0]:
             mongo_q = self.collection.find(agg_q[0]['$match'])
         else:

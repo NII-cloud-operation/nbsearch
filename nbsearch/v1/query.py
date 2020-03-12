@@ -1,3 +1,6 @@
+from bson.objectid import ObjectId
+
+
 def nq_from_q(q):
     return {
       'target': {'type': 'all', 'text': q}
@@ -11,13 +14,15 @@ def nq_from_meme(meme):
       }
     }
 
-def mongo_target_query_from_nq(nq_target):
+async def mongo_target_query_from_nq(nq_target, history):
     assert 'type' not in nq_target or nq_target['type'] == 'all'
     cond = {}
     if 'text' in nq_target:
         cond['$text'] = {'$search': nq_target['text']}
-    #if 'modified' in nq_target:
-    #    cond['']
+    if 'history_in' in nq_target:
+        history_obj = await history.find_one({'_id': ObjectId(nq_target['history_in'])})
+        notebook_ids = [ObjectId(id) for id in history_obj['notebook_ids']]
+        cond['_id'] = {'$in': notebook_ids}
     return cond
 
 def to_regex(substr):
@@ -59,10 +64,10 @@ def mongo_cell_query_from_nq(nq_cell):
         matches.append(mongo_cell_query_element_from_nq(m))
     return {cond: matches}
 
-def mongo_agg_query_from_nq(nq):
+async def mongo_agg_query_from_nq(nq, history):
     agg = []
     if 'target' in nq:
-        q = mongo_target_query_from_nq(nq['target'])
+        q = await mongo_target_query_from_nq(nq['target'], history)
         if q is not None:
             agg.append({'$match': q})
     if 'cell' in nq:
