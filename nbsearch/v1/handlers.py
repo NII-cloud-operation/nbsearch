@@ -9,6 +9,8 @@ import tornado.web
 from bson.objectid import ObjectId
 from motor import motor_tornado
 
+from . import query
+
 
 class SearchHandler(tornado.web.RequestHandler):
     def initialize(self, database, collection, base_dir):
@@ -16,11 +18,22 @@ class SearchHandler(tornado.web.RequestHandler):
 
     async def get(self):
         start, limit = self._get_page()
-        result = self.collection.find(self._get_mongo_query()).skip(start).limit(limit)
+        nq = self._get_nq()
+        agg_q = query.mongo_agg_query_from_nq(nq)
+        if len(agg_q) == 1 and '$match' in agg_q[0]:
+            mongo_q = self.collection.find(agg_q[0]['$match'])
+        else:
+            mongo_q = self.collection.aggregate(agg_q)
+        result = mongo_q.skip(start).limit(limit)
         notebooks = await result.to_list(length=limit)
         notebooks = [self._filter(n) for n in notebooks]
-        resp = {'notebooks': notebooks, 'limit': limit,
-                'size': len(notebooks), 'start': start}
+        resp = {
+            'notebooks': notebooks,
+            'limit': limit,
+            'size': len(notebooks),
+            'start': start,
+            'nq': nq
+        }
         self.write(resp)
 
     def _filter(self, notebook):
@@ -32,32 +45,16 @@ class SearchHandler(tornado.web.RequestHandler):
             return value.isoformat()
         return value
 
-    def _get_base_query(self, q):
-        assert len(q) == 2
-        k, v = tuple(q)
-        if k == 'meme':
-            return {'cells.metadata.lc_cell_meme.current': v}
-        else:
-            return {'$text': {'$search': v}}
-
-    def _get_and_query(self, qs):
-        if len(qs) == 0:
-            return self._get_base_query(qs[0])
-        return {'$and': [self._get_base_query(q) for q in qs]}
-
-    def _get_mongo_query(self):
-        qs = self.get_query_argument('qs', None)
-        if qs is not None:
-            qsobj = json.loads(qs)
-            if len(qsobj) == 1:
-                return self._get_and_query(qsobj[0])
-            return {'$or': [self._get_and_query(q) for q in qsobj]}
+    def _get_nq(self):
+        nq = self.get_query_argument('nq', None)
+        if nq is not None:
+            return json.loads(nq)
         meme = self.get_query_argument('meme', None)
         if meme is not None:
-            return {'cells.metadata.lc_cell_meme.current': meme}
-        query = self.get_query_argument('q', None)
-        if query is not None:
-            return {'$text': {'$search': query}}
+            return query.nq_from_meme(meme)
+        q = self.get_query_argument('q', None)
+        if q is not None:
+            return query.nq_from_q(q)
         return None
 
     def _get_page(self):
