@@ -80,13 +80,13 @@ define([
                             .attr('value', h.id)
                             .text(`${h.text} (${h.id}, ノートブック数:${h.notebooks})`));
                     });
-                    if (target.history_in) {
+                    if (target && target.history_in) {
                         target_type.val(target.history_in);
                         target_history.prop('checked', false);
-                    } else if (target.history_related) {
+                    } else if (target && target.history_related) {
                         target_type.val(target.history_related);
                         target_history.prop('checked', true);
-                    } else if (target.text) {
+                    } else if (target && target.text) {
                         target_type.val('ALL');
                         target_text.val(target.text);
                     }
@@ -188,11 +188,11 @@ define([
             .attr('id', 'nbsearch-cell-cond')
             .append($('<option></option>').attr('value', 'and').text('すべて'))
             .append($('<option></option>').attr('value', 'or').text('いずれか'));
-        let conds = null;
-        if (cell.and) {
+        let conds = [];
+        if (cell && cell.and) {
             cell_cond.val('and');
             conds = cell.and || [];
-        } else {
+        } else if (cell) {
             cell_cond.val('or');
             conds = cell.or || [];
         }
@@ -242,13 +242,13 @@ define([
 
     async function create_cell_query_ui(query) {
         let nq = {};
-        if (!query.nq && query.q) {
+        if (query && !query.nq && query.q) {
             const q = query.q;
             nq = { target: { text: q } };
-        } else if (!query.nq && query.meme) {
+        } else if (query && !query.nq && query.meme) {
             const meme = query.meme;
             nq = { cell: { and: [{ meme }] } };
-        } else if (query.nq) {
+        } else if (query && query.nq) {
             nq = JSON.parse(query.nq);
         }
 

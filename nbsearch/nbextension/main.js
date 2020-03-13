@@ -16,7 +16,7 @@ define([
     const mod_name = 'nbsearch';
     const log_prefix = '[' + mod_name + ']';
 
-    let last_query = null;
+    let last_query = {};
     let base_href = null;
     let diff_selected = {};
 
@@ -108,21 +108,32 @@ define([
             if (parseInt(query.start) <= 0) {
               return;
             }
-            query.start = Math.min(parseInt(query.start) - parseInt(query.limit), 0).toString();
-            search.execute(query);
-            last_query = query;
-            diff_selected = {};
+            const baseq = search.get_cell_query(Math.min(parseInt(query.start) - parseInt(query.limit), 0).toString(), query.limit);
+            search.execute(baseq)
+                .then(newq => {
+                    console.log('SUCCESS', newq);
+                    last_query = newq;
+                    diff_selected = {};
+                })
+                .catch(e => {
+                    console.error('ERROR', e);
+                });
         });
         const next_button = $('<button></button>')
             .addClass('btn btn-link btn-xs')
             .append($('<i></i>').addClass('fa fa-angle-right'));
         next_button.click(() => {
             console.log(log_prefix, 'Next', last_query);
-            const query = Object.assign({}, last_query);
-            query.start = (parseInt(query.start) + parseInt(query.limit)).toString();
-            search.execute(query);
-            last_query = query;
-            diff_selected = {};
+            const baseq = search.get_cell_query((parseInt(query.start) + parseInt(query.limit)).toString(), query.limit);
+            search.execute(baseq)
+                .then(newq => {
+                    console.log('SUCCESS', newq);
+                    last_query = newq;
+                    diff_selected = {};
+                })
+                .catch(e => {
+                    console.error('ERROR', e);
+                });
         });
 
         const diff_button = $('<button></button>')
@@ -159,7 +170,7 @@ define([
             .append(diff_button);
     }
 
-    function create_ui() {
+    async function create_ui() {
         const headers = ['Path', 'Server', 'MTime', 'ATime', '# of Cells'];
         const header_elems = headers.map(colname => $('<th></th>')
             .append(colname));
@@ -182,21 +193,23 @@ define([
             .addClass('btn btn-default btn-xs')
             .append($('<i></i>').addClass('fa fa-search'));
         search_button.click(() => {
-            const query = { q: $('#nbsearch-query').val() };
-            console.log(log_prefix, 'Search', query);
-            search.execute(query);
-            last_query = query;
-            diff_selected = {};
+            const baseq = search.get_cell_query(last_query.start, last_query.limit);
+            search.execute(baseq)
+                .then(newq => {
+                    console.log('SUCCESS', newq);
+                    last_query = newq;
+                    diff_selected = {};
+                })
+                .catch(e => {
+                    console.error('ERROR', e);
+                });
         });
 
         const toolbar = $('<div></div>')
             .addClass('row list_toolbar')
             .append($('<div></div>')
                 .addClass('col-sm-12 no-padding')
-                .append('Query:')
-                .append($('<input></input>')
-                    .attr('id', 'nbsearch-query')
-                    .attr('type', 'text'))
+                .append(await search.create_cell_query_ui())
                 .append(search_button)
                 .append(loading_indicator));
         const error = $('<div></div>')
@@ -209,13 +222,13 @@ define([
             .append(create_page_button());
     }
 
-    function insert_tab() {
+    async function insert_tab() {
         var tab_text = 'NBSearch';
         var tab_id = 'nbsearch';
 
         $('<div/>')
             .attr('id', tab_id)
-            .append(create_ui())
+            .append(await create_ui())
             .addClass('tab-pane')
             .appendTo('.tab-content');
 
@@ -247,7 +260,10 @@ define([
             .attr('href', require.toUrl('./main.css'))
             .appendTo('head');
 
-        insert_tab();
+        insert_tab()
+            .then(ui => {
+                console.log('UI created', ui);
+            });
     }
 
     return {

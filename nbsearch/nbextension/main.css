@@ -1,0 +1,19 @@
+.nbsearch-todo {
+  color: grey;
+}
+
+.nbsearch-category-header {
+  font-weight: bold;
+}
+
+.nbsearch-category-body {
+  margin-left: 1em;
+}
+
+.nbsearch-target-disabled {
+  color: #ccc;
+}
+
+.nbsearch-notebook-disabled {
+  color: #ccc;
+}
