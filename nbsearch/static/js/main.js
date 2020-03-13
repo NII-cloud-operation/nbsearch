@@ -45,7 +45,13 @@ define([
 
   $('.save-search').click(() => {
     const baseq = search.get_cell_query(query.start, query.limit);
-    search.save(baseq, 'Test Result');
+    search.save(baseq, 'Test Result')
+      .then(result => {
+        console.log('SUCCESS', result);
+      })
+      .catch(e => {
+        console.error('ERROR', e);
+      });
   });
 
   $('.prev-page').click(() => {

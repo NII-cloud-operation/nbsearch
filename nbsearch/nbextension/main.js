@@ -108,7 +108,7 @@ define([
             if (parseInt(query.start) <= 0) {
               return;
             }
-            const baseq = search.get_cell_query(Math.min(parseInt(query.start) - parseInt(query.limit), 0).toString(), query.limit);
+            const baseq = search.get_cell_query(Math.min(parseInt(last_query.start) - parseInt(last_query.limit), 0).toString(), last_query.limit);
             search.execute(baseq)
                 .then(newq => {
                     console.log('SUCCESS', newq);
@@ -124,7 +124,7 @@ define([
             .append($('<i></i>').addClass('fa fa-angle-right'));
         next_button.click(() => {
             console.log(log_prefix, 'Next', last_query);
-            const baseq = search.get_cell_query((parseInt(query.start) + parseInt(query.limit)).toString(), query.limit);
+            const baseq = search.get_cell_query((parseInt(last_query.start) + parseInt(last_query.limit)).toString(), last_query.limit);
             search.execute(baseq)
                 .then(newq => {
                     console.log('SUCCESS', newq);
@@ -138,7 +138,9 @@ define([
 
         const diff_button = $('<button></button>')
             .addClass('btn btn-default btn-xs nbsearch-diff-button')
-            .prop('disabled', true).text('Diff');
+            .prop('disabled', true)
+            .append($('<i></i>').addClass('fa fa-eye'))
+            .append('Diff');
         diff_button.click(() => {
             const notebooks = Object.entries(diff_selected).filter(v => v[1] !== null).map(v => v[1]);
             console.log(notebooks);
@@ -161,12 +163,27 @@ define([
                 });
         });
 
+        const save_button = $('<button></button>')
+            .addClass('btn btn-default btn-xs nbsearch-save-button')
+            .append($('<i></i>').addClass('fa fa-save'))
+            .append('Save');
+        save_button.click(() => {
+            search.save(last_query, `Test ${last_query.nq}`)
+                .then(result => {
+                    console.log('SUCCESS', result);
+                })
+                .catch(e => {
+                    console.error('ERROR', e);
+                });
+        });
+
         const page_number = $('<span></span>')
             .addClass('nbsearch-page-number');
         return $('<div></div>')
             .append(prev_button)
             .append(page_number)
             .append(next_button)
+            .append(save_button)
             .append(diff_button);
     }
 
@@ -191,7 +208,8 @@ define([
             .addClass('fa fa-spinner fa-pulse');
         const search_button = $('<button></button>')
             .addClass('btn btn-default btn-xs')
-            .append($('<i></i>').addClass('fa fa-search'));
+            .append($('<i></i>').addClass('fa fa-search'))
+            .append('検索');
         search_button.click(() => {
             const baseq = search.get_cell_query(last_query.start, last_query.limit);
             search.execute(baseq)

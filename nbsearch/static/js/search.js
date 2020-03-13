@@ -281,22 +281,26 @@ define([
     }
 
     function save(query, name) {
-      $(`#${config.elemPrefix}loading`).show();
-      $(`#${config.elemPrefix}error-connect`).hide();
-      var jqxhr = $.ajax({
-          type: 'PUT',
-          url: `${config.urlPrefix}/v1/history?${$.param(query)}`,
-          contentType: 'application/json',
-          data: JSON.stringify({ name }),
-      })
-          .done(data => {
-              console.log(log_prefix, 'query', data);
-              $(`#${config.elemPrefix}loading`).hide();
-          })
-          .fail(() => {
-              $(`#${config.elemPrefix}loading`).hide();
-              $(`#${config.elemPrefix}error-connect`).show();
-          });
+        return new Promise((resolve, reject) => {
+            $(`#${config.elemPrefix}loading`).show();
+            $(`#${config.elemPrefix}error-connect`).hide();
+            var jqxhr = $.ajax({
+                type: 'PUT',
+                url: `${config.urlPrefix}/v1/history?${$.param(query)}`,
+                contentType: 'application/json',
+                data: JSON.stringify({ name }),
+            })
+                .done(data => {
+                    console.log(log_prefix, 'query', data);
+                    $(`#${config.elemPrefix}loading`).hide();
+                    resolve(data);
+                })
+                .fail(err => {
+                    $(`#${config.elemPrefix}loading`).hide();
+                    $(`#${config.elemPrefix}error-connect`).show();
+                    reject(err);
+                });
+        });
     }
 
     function execute(query_) {
