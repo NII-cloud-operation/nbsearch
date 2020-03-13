@@ -236,7 +236,7 @@ define([
             .text('No item');
         return $('<div></div>')
             .addClass('nbsearch-category-section')
-            .append($('<div></div>').addClass('nbsearch-category-header').text('検索結果の加工:'))
+            .append($('<div></div>').addClass('nbsearch-category-header').text('検索結果の抽出:'))
             .append(dummy);
     }
 
