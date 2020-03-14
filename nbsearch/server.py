@@ -34,7 +34,7 @@ def get_api_handlers(handler_settings):
     return [
         (r"/v1/search", SearchHandler, handler_settings),
         (r"/v1/download/(?P<id>[^\/]+)", DownloadHandler, handler_settings),
-        (r"/v1/import(?P<path>/.*)?/(?P<id>[^\/]+)", ImportHandler, handler_settings),
+        (r"/v1/import(?P<path>/.+)?/(?P<id>[^\/]+)", ImportHandler, handler_settings),
     ]
 
 

@@ -72,7 +72,7 @@ class DownloadHandler(tornado.web.RequestHandler):
         self.collection = collection
 
     async def get(self, id):
-        fs = self._get_fs()
+        fs = motor_tornado.MotorGridFSBucket(self.database)
         file_id = ObjectId(id)
         notebook = await self.collection.find_one({'_id': file_id})
         filename = os.path.basename(notebook['path'])
@@ -81,9 +81,6 @@ class DownloadHandler(tornado.web.RequestHandler):
         self.set_header('Content-Type', 'application/json; charset=utf-8')
         await fs.download_to_stream(file_id, self)
         self.finish()
-
-    def _get_fs(self):
-        return motor_tornado.MotorGridFSBucket(self.database)
 
 
 class ImportHandler(tornado.web.RequestHandler):
@@ -114,7 +111,7 @@ class ImportHandler(tornado.web.RequestHandler):
         return alt_filename
 
     async def get(self, path, id):
-        fs = self._get_fs()
+        fs = motor_tornado.MotorGridFSBucket(self.database)
         file_id = ObjectId(id)
         notebook = await self.collection.find_one({'_id': file_id})
         filename = os.path.basename(notebook['path'])
@@ -129,6 +126,3 @@ class ImportHandler(tornado.web.RequestHandler):
         with open(os.path.join(self.base_dir, path, filename), 'wb') as f:
             await fs.download_to_stream(file_id, f)
         self.write({'filename': filename})
-
-    def _get_fs(self):
-        return motor_tornado.MotorGridFSBucket(self.database)

@@ -4,10 +4,10 @@ import tempfile
 import unittest
 import tornado.testing
 import tornado.web
+import motor.motor_tornado
 import mock
 import nbsearch.server
 import os
-from nbsearch.v1.handlers import DownloadHandler, ImportHandler
 from .utils import AsyncMock
 
 collection_name = 'test_notebooks'
@@ -38,15 +38,15 @@ class ApiHandlerTestCaseBase(tornado.testing.AsyncHTTPTestCase):
 
 class TestDownloadHandler(ApiHandlerTestCaseBase):
 
-    @mock.patch.object(DownloadHandler, '_get_fs')
-    def test_download(self, mock_get_fs):
+    @mock.patch.object(motor.motor_tornado, 'MotorGridFSBucket')
+    def test_download(self, mock_fs_init):
         notebook_file_id = '0123456789ab0123456789ab'
         notebook_filename = 'notebook1.ipynb'
         notebook = {'path': os.path.join(self.base_dir, notebook_filename)}
 
         mock_fs = mock.Mock()
         mock_fs.download_to_stream = AsyncMock()
-        mock_get_fs.return_value = mock_fs
+        mock_fs_init.return_value = mock_fs
         self.collection.find_one = AsyncMock()
         self.collection.find_one.return_value = notebook
 
@@ -76,15 +76,15 @@ class TestImportHandler(ApiHandlerTestCaseBase):
     def tearDown(self):
         super().tearDown()
 
-    @mock.patch.object(ImportHandler, '_get_fs')
-    def test_import(self, mock_get_fs):
+    @mock.patch.object(motor.motor_tornado, 'MotorGridFSBucket')
+    def test_import(self, mock_fs_init):
         dest_path = 'dest'
         dest_full_path = os.path.join(self.base_dir, dest_path)
         os.mkdir(dest_full_path)
 
         mock_fs = mock.Mock()
         mock_fs.download_to_stream = AsyncMock()
-        mock_get_fs.return_value = mock_fs
+        mock_fs_init.return_value = mock_fs
 
         response = self.fetch('/v1/import/{}/{}'.format(dest_path, self.notebook_file_id))
         self.assertEqual(response.code, 200)
@@ -95,8 +95,8 @@ class TestImportHandler(ApiHandlerTestCaseBase):
         self.assertEqual(mock_fs.download_to_stream.call_args[0][1].name,
                          os.path.join(dest_full_path, self.notebook_filename))
 
-    @mock.patch.object(ImportHandler, '_get_fs')
-    def test_import_multiple(self, mock_get_fs):
+    @mock.patch.object(motor.motor_tornado, 'MotorGridFSBucket')
+    def test_import_multiple(self, mock_fs_init):
         dest_notebook_filenames = [
             'notebook1.ipynb',
             'notebook1 (1).ipynb',
@@ -107,7 +107,7 @@ class TestImportHandler(ApiHandlerTestCaseBase):
         os.mkdir(dest_full_path)
 
         mock_fs = mock.Mock()
-        mock_get_fs.return_value = mock_fs
+        mock_fs_init.return_value = mock_fs
 
         for dest_notebook_filename in dest_notebook_filenames:
             mock_fs.download_to_stream = AsyncMock()
@@ -117,15 +117,15 @@ class TestImportHandler(ApiHandlerTestCaseBase):
             self.assertEqual(mock_fs.download_to_stream.call_args[0][1].name,
                              os.path.join(dest_full_path, dest_notebook_filename))
 
-    @mock.patch.object(ImportHandler, '_get_fs')
-    def test_import_to_nested_path(self, mock_get_fs):
+    @mock.patch.object(motor.motor_tornado, 'MotorGridFSBucket')
+    def test_import_to_nested_path(self, mock_fs_init):
         dest_path = 'dest/a/b/c'
         dest_full_path = os.path.join(self.base_dir, dest_path)
         os.makedirs(dest_full_path, exist_ok=True)
 
         mock_fs = mock.Mock()
         mock_fs.download_to_stream = AsyncMock()
-        mock_get_fs.return_value = mock_fs
+        mock_fs_init.return_value = mock_fs
 
         response = self.fetch('/v1/import/{}/{}'.format(dest_path, self.notebook_file_id))
         self.assertEqual(response.code, 200)
@@ -135,8 +135,8 @@ class TestImportHandler(ApiHandlerTestCaseBase):
         self.assertEqual(mock_fs.download_to_stream.call_args[0][1].name,
                          os.path.join(dest_full_path, self.notebook_filename))
 
-    @mock.patch.object(ImportHandler, '_get_fs')
-    def test_import_multiple_to_nested_path(self, mock_get_fs):
+    @mock.patch.object(motor.motor_tornado, 'MotorGridFSBucket')
+    def test_import_multiple_to_nested_path(self, mock_fs_init):
         dest_notebook_filenames = [
             'notebook1.ipynb',
             'notebook1 (1).ipynb',
@@ -147,7 +147,7 @@ class TestImportHandler(ApiHandlerTestCaseBase):
         os.makedirs(dest_full_path, exist_ok=True)
 
         mock_fs = mock.Mock()
-        mock_get_fs.return_value = mock_fs
+        mock_fs_init.return_value = mock_fs
 
         for dest_notebook_filename in dest_notebook_filenames:
             mock_fs.download_to_stream = AsyncMock()
@@ -157,27 +157,19 @@ class TestImportHandler(ApiHandlerTestCaseBase):
             self.assertEqual(mock_fs.download_to_stream.call_args[0][1].name,
                              os.path.join(dest_full_path, dest_notebook_filename))
 
-    @mock.patch.object(ImportHandler, '_get_fs')
-    def test_import_to_empty_path(self, mock_get_fs):
-        dest_path = ''
-        dest_full_path = os.path.join(self.base_dir, dest_path)
-
+    @mock.patch.object(motor.motor_tornado, 'MotorGridFSBucket')
+    def test_import_to_empty_path(self, mock_fs_init):
         mock_fs = mock.Mock()
         mock_fs.download_to_stream = AsyncMock()
-        mock_get_fs.return_value = mock_fs
+        mock_fs_init.return_value = mock_fs
 
-        response = self.fetch('/v1/import/{}/{}'.format(dest_path, self.notebook_file_id))
-        self.assertEqual(response.code, 200)
+        response = self.fetch('/v1/import/{}/{}'.format('', self.notebook_file_id))
+        self.assertEqual(response.code, 404)
 
-        self.assertEqual(mock_fs.download_to_stream.call_count, 1)
-        self.assertEqual(str(mock_fs.download_to_stream.call_args[0][0]), self.notebook_file_id)
-        self.assertEqual(mock_fs.download_to_stream.call_args[0][1].name,
-                         os.path.join(dest_full_path, self.notebook_filename))
-
-    @mock.patch.object(ImportHandler, '_get_fs')
-    def test_import_to_including_dot_path(self, mock_get_fs):
+    @mock.patch.object(motor.motor_tornado, 'MotorGridFSBucket')
+    def test_import_to_including_dot_path(self, mock_fs_init):
         mock_fs = mock.Mock()
-        mock_get_fs.return_value = mock_fs
+        mock_fs_init.return_value = mock_fs
         dest_paths = [
             '..', '../x', 'x/..', 'x/../y',
             '.', './x', 'x/.', 'x/./y',
@@ -189,10 +181,10 @@ class TestImportHandler(ApiHandlerTestCaseBase):
             self.assertEqual(response.code, 400)
             self.assertEqual(mock_fs.download_to_stream.call_count, 0)
 
-    @mock.patch.object(ImportHandler, '_get_fs')
-    def test_import_to_start_with_multiple_slashed_path(self, mock_get_fs):
+    @mock.patch.object(motor.motor_tornado, 'MotorGridFSBucket')
+    def test_import_to_start_with_multiple_slashed_path(self, mock_fs_init):
         mock_fs = mock.Mock()
-        mock_get_fs.return_value = mock_fs
+        mock_fs_init.return_value = mock_fs
         dest_paths = [
             '//x', '///x',
         ]
