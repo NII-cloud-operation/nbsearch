@@ -186,14 +186,13 @@ define([
             .append(_create_notebook_mtime_query_ui(mtimeKey, mtime[mtimeKey]));
     }
 
-    function _get_cell_field_query(index) {
-        const field_index = $(`#nbsearch-cell-${index} .nbsearch-cell-field`).length;
+    function _get_cell_field_query(container) {
         const r = {};
-        for (let i = 0; i < field_index; i ++) {
-            const k = $(`#nbsearch-cell-${index} .nbsearch-cell-field-${i} .nbsearch-cell-field-type`).val();
-            const v = $(`#nbsearch-cell-${index} .nbsearch-cell-field-${i} .nbsearch-cell-field-value`).val();
+        container.find('.nbsearch-cell-field').toArray().forEach(field => {
+            const k = $(field).find('.nbsearch-cell-field-type').val();
+            const v = $(field).find('.nbsearch-cell-field-value').val();
             r[k] = v;
-        }
+        });
         return r;
     }
 
@@ -208,7 +207,16 @@ define([
          ['in_next_meme', '後続MEMEに含む'],
          ['in_code', 'Codeに含む'],
          ['in_markdown', 'Markdownに含む'],
-         ['in_output', 'Outputに含む']].forEach(v => {
+         ['in_output', 'Outputに含む'],
+         ['not_meme', 'MEME一致しない'],
+         ['not_prev_meme', '先行MEME一致しない'],
+         ['not_next_meme', '後続MEME一致しない'],
+         ['not_in_meme', 'MEMEに含まない'],
+         ['not_in_prev_meme', '先行MEMEに含まない'],
+         ['not_in_next_meme', '後続MEMEに含まない'],
+         ['not_in_code', 'Codeに含まない'],
+         ['not_in_markdown', 'Markdownに含まない'],
+         ['not_in_output', 'Outputに含まない']].forEach(v => {
             fieldtype.append($('<option></option>').attr('value', v[0]).text(v[1]));
         });
         fieldtype.val(fieldname);
@@ -216,43 +224,49 @@ define([
             .attr('type', 'text')
             .addClass('nbsearch-cell-field-value');
         fieldvalue.val(value);
-        return $('<span></span>')
+        const container = $('<span></span>');
+        const remove_button = $('<button></button>')
+            .addClass('btn btn-default')
+            .append($('<i></i>').addClass('fa fa-times'));
+        remove_button.click(() => {
+            container.remove();
+        });
+        return container
             .addClass('nbsearch-cell-field')
             .append(fieldtype)
-            .append(fieldvalue);
+            .append(fieldvalue)
+            .append(remove_button);
     }
 
     function _get_cell_query() {
-        const cell_index = $('.nbsearch-cell-container').length;
         const r = [];
-        for (let i = 0; i < cell_index; i ++) {
-            r.push(_get_cell_field_query(i));
-        }
+        $('.nbsearch-cell-container').toArray().forEach(container => {
+            r.push(_get_cell_field_query($(container)));
+        });
         rc = {};
         rc[$('#nbsearch-cell-cond').val()] = r;
         return rc;
     }
 
-    function _create_cell_element_query_ui(cell, index) {
+    function _create_cell_element_query_ui(cell) {
         const container = $('<div></div>')
-            .attr('id', `nbsearch-cell-${index}`)
             .addClass('nbsearch-cell-container');
         const fields = $('<span></span>');
         const add_button = $('<button></button>')
             .addClass('btn btn-default')
             .append($('<i></i>').addClass('fa fa-plus'));
         Object.keys(cell).forEach((k, field_index) => {
-            fields.append(_create_cell_field(k, cell[k])
-                .addClass(`nbsearch-cell-field-${field_index}`));
+            fields.append(_create_cell_field(k, cell[k]));
         });
         add_button.click(() => {
-            const field_index = $(`#nbsearch-cell-${index} .nbsearch-cell-field`).length;
-            fields.append(_create_cell_field('meme', '')
-                .addClass(`nbsearch-cell-field-${field_index}`))
+            fields.append(_create_cell_field('meme', ''))
         })
         const remove_button = $('<button></button>')
             .addClass('btn btn-default')
             .append($('<i></i>').addClass('fa fa-trash'));
+        remove_button.click(() => {
+            container.remove();
+        });
         return container.append(fields).append(add_button).append(remove_button);
     }
 
@@ -313,7 +327,7 @@ define([
         return $('<div></div>')
             .addClass('nbsearch-category-section')
             .append($('<div></div>').addClass('nbsearch-category-header').text('検索結果の抽出:'))
-            .append(cell_cond);
+            .append($('<div></div>').addClass('nbsearch-category-body').append(cell_cond));
     }
 
     function _get_project_query() {

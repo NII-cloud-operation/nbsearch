@@ -17,3 +17,7 @@
 .nbsearch-notebook-disabled {
   color: #ccc;
 }
+
+.nbsearch-cell-field {
+  margin: 1em 0.5em;
+}
