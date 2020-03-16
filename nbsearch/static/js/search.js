@@ -105,15 +105,85 @@ define([
         });
     }
 
-    function _create_notebook_query_ui(notebook) {
-        const dummy = $('<div></div>')
+    function _create_notebook_field_query_ui(fieldname, displayname, name, value) {
+        const fieldtype = $('<select></select>')
+            .addClass(`nbsearch-notebook-${fieldname}-type`);
+        [
+            ['eq', `${displayname}が一致`],
+            ['not', `${displayname}が一致しない`],
+            ['in', `${displayname}に含む`],
+            ['not_in', `${displayname}に含まない`],
+        ].forEach(v => {
+            fieldtype.append($('<option></option>').attr('value', v[0]).text(v[1]));
+        });
+        fieldtype.val(name);
+        const fieldvalue = $('<input></input>')
+            .attr('type', 'text')
+            .addClass(`nbsearch-notebook-${fieldname}-value`);
+        fieldvalue.val(value);
+        return $('<div></div>')
+            .addClass(`nbsearch-notebook-${fieldname}`)
             .addClass('nbsearch-category-body')
-            .addClass('nbsearch-notebook-disabled')
-            .text('No item');
+            .append($('<span></span>').text(displayname))
+            .append(fieldtype)
+            .append(fieldvalue);
+    }
+
+    function _create_notebook_mtime_query_ui(name, value) {
+        const fieldname = 'mtime';
+        const displayname = '更新時刻';
+        const fieldtype = $('<select></select>')
+            .addClass(`nbsearch-notebook-${fieldname}-type`);
+        [
+            ['gte', '以後に更新'],
+            ['lte', '以前に更新'],
+        ].forEach(v => {
+            fieldtype.append($('<option></option>').attr('value', v[0]).text(v[1]));
+        });
+        fieldtype.val(name);
+        const fieldvalue = $('<input></input>')
+            .attr('type', 'text')
+            .addClass(`nbsearch-notebook-${fieldname}-value`);
+        fieldvalue.val(value);
+        return $('<div></div>')
+            .addClass(`nbsearch-notebook-${fieldname}`)
+            .addClass('nbsearch-category-body')
+            .append($('<span></span>').text(displayname))
+            .append(fieldvalue)
+            .append(fieldtype);
+    }
+
+    function _get_notebook_query() {
+        const query = {};
+        ['path', 'server', 'mtime'].forEach(fieldname => {
+            const k = $(`.nbsearch-notebook-${fieldname}-type`).val();
+            const value = $(`.nbsearch-notebook-${fieldname}-value`).val();
+            if (!value) {
+              return;
+            }
+            const o = {};
+            o[k] = value;
+            query[fieldname] = o;
+        });
+        return query;
+    }
+
+    function _create_notebook_query_ui(notebook) {
+        const path = notebook.path || {};
+        const server = notebook.server || {};
+        const mtime = notebook.mtime || {};
+        const pathKeys = ['eq', 'in', 'not', 'not_in'].filter(k => path[k]);
+        const serverKeys = ['eq', 'in', 'not', 'not_in'].filter(k => server[k]);
+        const mtimeKeys = ['lte', 'gte', 'lt', 'gt'].filter(k => mtime[k]);
+        const pathKey = pathKeys.length == 0 ? undefined : pathKeys[0];
+        const serverKey = serverKeys.length == 0 ? undefined : serverKeys[0];
+        const mtimeKey = mtimeKeys.length == 0 ? undefined : mtimeKeys[0];
         return $('<div></div>')
             .addClass('nbsearch-category-section')
             .append($('<div></div>').addClass('nbsearch-category-header').text('Notebook条件:'))
-            .append(dummy);
+            .append(_create_notebook_field_query_ui('path', 'ファイルパス', pathKey, path[pathKey]))
+            .append(_create_notebook_field_query_ui('server', 'サーバーURL', serverKey, server[serverKey]))
+            .append(_create_notebook_mtime_query_ui(mtimeKey, mtime[mtimeKey]));
     }
 
     function _get_cell_field_query(index) {
@@ -180,7 +250,10 @@ define([
             fields.append(_create_cell_field('meme', '')
                 .addClass(`nbsearch-cell-field-${field_index}`))
         })
-        return container.append(fields).append(add_button);
+        const remove_button = $('<button></button>')
+            .addClass('btn btn-default')
+            .append($('<i></i>').addClass('fa fa-trash'));
+        return container.append(fields).append(add_button).append(remove_button);
     }
 
     function _create_cell_query_ui(cell) {
@@ -230,14 +303,23 @@ define([
     }
 
     function _create_project_query_ui(project) {
-        const dummy = $('<div></div>')
-            .addClass('nbsearch-category-body')
-            .addClass('nbsearch-notebook-disabled')
-            .text('No item');
+        const cell_cond = $('<select></select>')
+            .attr('id', 'nbsearch-retrieve')
+            .append($('<option></option>').attr('value', 'original').text('何もしない'))
+            .append($('<option></option>').attr('value', 'common_meme').text('MEME共通セット'))
+            .append($('<option></option>').attr('value', 'markdown_section').text('Markdownセルセット'));
+        const retrieve = project.retrieve || 'original';
+        cell_cond.val(retrieve);
         return $('<div></div>')
             .addClass('nbsearch-category-section')
             .append($('<div></div>').addClass('nbsearch-category-header').text('検索結果の抽出:'))
-            .append(dummy);
+            .append(cell_cond);
+    }
+
+    function _get_project_query() {
+        return {
+          retrieve: $('#nbsearch-retrieve').val(),
+        };
     }
 
     async function create_cell_query_ui(query) {
@@ -253,17 +335,19 @@ define([
         }
 
         return $('<div></div>')
-            .append(await _create_target_query_ui(nq.target))
-            .append(_create_notebook_query_ui(nq.notebook))
-            .append(_create_cell_query_ui(nq.cell))
-            .append(_create_project_query_ui(nq.project));
+            .append(await _create_target_query_ui(nq.target || {}))
+            .append(_create_notebook_query_ui(nq.notebook || {}))
+            .append(_create_cell_query_ui(nq.cell || {}))
+            .append(_create_project_query_ui(nq.project || {}));
     }
 
     function get_cell_query(start, limit) {
         r = {
             nq: JSON.stringify({
                 target: _get_target_query(),
+                notebook: _get_notebook_query(),
                 cell: _get_cell_query(),
+                project: _get_project_query(),
             })
         };
         if (start !== undefined) {
