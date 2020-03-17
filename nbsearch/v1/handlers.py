@@ -71,6 +71,9 @@ class SearchHandler(BaseHandler):
 
 class HistoryHandler(BaseHandler):
     async def get(self):
+        if self.get_query_argument('action', None) == 'save':
+            await self.save({ 'name': self.get_query_argument('name', None) })
+            return
         nq = self._get_nq()
         mongo_q = self.history.find()
         notebooks = []
@@ -87,6 +90,9 @@ class HistoryHandler(BaseHandler):
 
     async def put(self):
         json_data = tornado.escape.json_decode(self.request.body)
+        await self.save(json_data)
+
+    async def save(self, json_data):
         nq = self._get_nq()
         agg_q = await query.mongo_agg_query_from_nq(nq, self.history)
         if len(agg_q) == 1 and '$match' in agg_q[0]:

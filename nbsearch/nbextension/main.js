@@ -168,7 +168,7 @@ define([
             .append($('<i></i>').addClass('fa fa-save'))
             .append('Save');
         save_button.click(() => {
-            search.save(last_query, `Test ${last_query.nq}`)
+            search.save(last_query, `Test ${last_query.nq}`, true)
                 .then(result => {
                     console.log('SUCCESS', result);
                 })

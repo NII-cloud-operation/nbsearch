@@ -392,13 +392,19 @@ define([
             .attr('href', `${config.urlPrefix}/v1/download/${notebook.id}`).text(notebook['path']);
     }
 
-    function save(query, name) {
+    function save(query, name, byget) {
         return new Promise((resolve, reject) => {
             $(`#${config.elemPrefix}loading`).show();
             $(`#${config.elemPrefix}error-connect`).hide();
+
+            const newq = Object.assign({}, query);
+            if (byget) {
+                newq.action = 'save';
+                newq.name = name;
+            }
             var jqxhr = $.ajax({
-                type: 'PUT',
-                url: `${config.urlPrefix}/v1/history?${$.param(query)}`,
+                type: byget ? 'GET' : 'PUT',
+                url: `${config.urlPrefix}/v1/history?${$.param(newq)}`,
                 contentType: 'application/json',
                 data: JSON.stringify({ name }),
             })
