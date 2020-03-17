@@ -30,17 +30,30 @@ class BaseHandler(tornado.web.RequestHandler):
             return query.nq_from_q(q)
         return None
 
+    def _get_sort(self):
+        sort = self.get_query_argument('sort', None)
+        if sort is None:
+            return None
+        sort_field, sort_order = tuple(sort.split('-'))
+        return (sort_field, 1 if sort_order == 'asc' else -1)
 
 class SearchHandler(BaseHandler):
     async def get(self):
         start, limit = self._get_page()
         nq = self._get_nq()
         agg_q = await query.mongo_agg_query_from_nq(nq, self.history)
+        sort = self._get_sort()
         if len(agg_q) == 0:
             mongo_q = self.collection.find({})
+            if sort is not None:
+                mongo_q = mongo_q.sort([sort])
         elif len(agg_q) == 1 and '$match' in agg_q[0]:
             mongo_q = self.collection.find(agg_q[0]['$match'])
+            if sort is not None:
+                mongo_q = mongo_q.sort([sort])
         else:
+            if sort is not None:
+                agg_q.append({'$sort': [sort]})
             mongo_q = self.collection.aggregate(agg_q)
         result = mongo_q.skip(start).limit(limit)
         notebooks = await result.to_list(length=limit)
@@ -95,9 +108,18 @@ class HistoryHandler(BaseHandler):
     async def save(self, json_data):
         nq = self._get_nq()
         agg_q = await query.mongo_agg_query_from_nq(nq, self.history)
-        if len(agg_q) == 1 and '$match' in agg_q[0]:
+        sort = self._get_sort()
+        if len(agg_q) == 0:
+            mongo_q = self.collection.find({})
+            if sort is not None:
+                mongo_q = mongo_q.sort([sort])
+        elif len(agg_q) == 1 and '$match' in agg_q[0]:
             mongo_q = self.collection.find(agg_q[0]['$match'])
+            if sort is not None:
+                mongo_q = mongo_q.sort([sort])
         else:
+            if sort is not None:
+                agg_q.append({'$sort': [sort]})
             mongo_q = self.collection.aggregate(agg_q)
         notebook_ids = []
         async for doc in mongo_q:

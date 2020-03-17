@@ -108,15 +108,19 @@ define([
             if (parseInt(query.start) <= 0) {
               return;
             }
-            const baseq = search.get_cell_query(Math.min(parseInt(last_query.start) - parseInt(last_query.limit), 0).toString(), last_query.limit);
+            const baseq = search.get_cell_query(
+                Math.min(parseInt(last_query.start) - parseInt(last_query.limit), 0).toString(),
+                last_query.limit,
+                last_query.sort
+            );
             search.execute(baseq)
                 .then(newq => {
-                    console.log('SUCCESS', newq);
+                    console.log(log_prefix, 'SUCCESS', newq);
                     last_query = newq;
                     diff_selected = {};
                 })
                 .catch(e => {
-                    console.error('ERROR', e);
+                    console.error(log_prefix, 'ERROR', e);
                 });
         });
         const next_button = $('<button></button>')
@@ -124,15 +128,19 @@ define([
             .append($('<i></i>').addClass('fa fa-angle-right'));
         next_button.click(() => {
             console.log(log_prefix, 'Next', last_query);
-            const baseq = search.get_cell_query((parseInt(last_query.start) + parseInt(last_query.limit)).toString(), last_query.limit);
+            const baseq = search.get_cell_query(
+                (parseInt(last_query.start) + parseInt(last_query.limit)).toString(),
+                last_query.limit,
+                last_query.sort
+            );
             search.execute(baseq)
                 .then(newq => {
-                    console.log('SUCCESS', newq);
+                    console.log(log_prefix, 'SUCCESS', newq);
                     last_query = newq;
                     diff_selected = {};
                 })
                 .catch(e => {
-                    console.error('ERROR', e);
+                    console.error(log_prefix, 'ERROR', e);
                 });
         });
 
@@ -159,21 +167,22 @@ define([
                     }, 10);
                 })
                 .catch(err => {
-                    console.log(err);
+                    console.log(log_prefix, err);
                 });
         });
 
         const save_button = $('<button></button>')
             .addClass('btn btn-default btn-xs nbsearch-save-button')
+            .prop('disabled', true)
             .append($('<i></i>').addClass('fa fa-save'))
             .append('Save');
         save_button.click(() => {
             search.save(last_query, `Test ${last_query.nq}`, true)
                 .then(result => {
-                    console.log('SUCCESS', result);
+                    console.log(log_prefix, 'SUCCESS', result);
                 })
                 .catch(e => {
-                    console.error('ERROR', e);
+                    console.error(log_prefix, 'ERROR', e);
                 });
         });
 
@@ -188,9 +197,48 @@ define([
     }
 
     async function create_ui() {
-        const headers = ['Path', 'Server', 'MTime', 'ATime', '# of Cells'];
-        const header_elems = headers.map(colname => $('<th></th>')
-            .append(colname));
+        const headers = [['Path', 'path'], ['Server', 'server'],
+                         ['MTime', 'mtime'], ['ATime', 'atime'],
+                         ['# of Cells', null]];
+        const header_elems = headers.map(cols => {
+            const colname = cols[0];
+            const colid = cols[1];
+            const label = $('<span></span>')
+                .addClass('nbsearch-column-order');
+            const colbutton = $('<button></button>')
+                .addClass('btn btn-link nbsearch-column-header')
+                .prop('disabled', true)
+                .text(colname)
+                .append(label);
+            colbutton.click(() => {
+                if (!last_query) {
+                    return;
+                }
+                $('.nbsearch-column-order').empty();
+                let sort = last_query.sort;
+                if (sort == `${colid}-asc`) {
+                    sort = `${colid}-desc`;
+                    label.append($('<i></i>').addClass('fa fa-angle-down'));
+                } else {
+                    sort = `${colid}-asc`;
+                    label.append($('<i></i>').addClass('fa fa-angle-up'));
+                }
+                const baseq = search.get_cell_query(
+                    undefined, undefined, sort
+                );
+                search.execute(baseq)
+                    .then(newq => {
+                        console.log(log_prefix, 'SUCCESS', newq);
+                        last_query = newq;
+                        diff_selected = {};
+                    })
+                    .catch(e => {
+                        console.error(log_prefix, 'ERROR', e);
+                    });
+            });
+            return $('<th></th>')
+                .append(colbutton);
+        });
 
         const list = $('<table></table>')
             .addClass('table')
@@ -211,9 +259,13 @@ define([
             .append($('<i></i>').addClass('fa fa-search'))
             .append('検索');
         search_button.click(() => {
-            const baseq = search.get_cell_query(last_query.start, last_query.limit);
+            const baseq = search.get_cell_query(
+                last_query.start, last_query.limit, last_query.sort
+            );
             search.execute(baseq)
                 .then(newq => {
+                    $('.nbsearch-save-button').prop('disabled', false);
+                    $('.nbsearch-column-header').prop('disabled', false);
                     console.log(log_prefix, 'SUCCESS', newq);
                     last_query = newq;
                     diff_selected = {};
@@ -226,7 +278,7 @@ define([
         const toolbar = $('<div></div>')
             .addClass('row list_toolbar')
             .append($('<div></div>')
-                .addClass('col-sm-12 no-padding')
+                .addClass('col-sm-12 no-padding nbsearch-search-panel')
                 .append(await search.create_cell_query_ui())
                 .append(search_button)
                 .append(loading_indicator));

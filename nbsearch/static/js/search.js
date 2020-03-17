@@ -369,7 +369,7 @@ define([
             .append(_create_project_query_ui(nq.project || {}));
     }
 
-    function get_cell_query(start, limit) {
+    function get_cell_query(start, limit, sort) {
         r = {
             nq: JSON.stringify({
                 target: _get_target_query(),
@@ -383,6 +383,9 @@ define([
         }
         if (limit !== undefined) {
             r.limit = limit;
+        }
+        if (sort !== undefined) {
+            r.sort = sort;
         }
         return r;
     }

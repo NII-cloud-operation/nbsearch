@@ -2,6 +2,10 @@
   color: grey;
 }
 
+.nbsearch-search-panel {
+  margin: 1em;
+}
+
 .nbsearch-category-header {
   font-weight: bold;
 }
