@@ -36,7 +36,9 @@ class SearchHandler(BaseHandler):
         start, limit = self._get_page()
         nq = self._get_nq()
         agg_q = await query.mongo_agg_query_from_nq(nq, self.history)
-        if len(agg_q) == 1 and '$match' in agg_q[0]:
+        if len(agg_q) == 0:
+            mongo_q = self.collection.find({})
+        elif len(agg_q) == 1 and '$match' in agg_q[0]:
             mongo_q = self.collection.find(agg_q[0]['$match'])
         else:
             mongo_q = self.collection.aggregate(agg_q)

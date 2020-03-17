@@ -1,4 +1,5 @@
 from bson.objectid import ObjectId
+import dateutil.parser
 
 
 def nq_from_q(q):
@@ -26,6 +27,38 @@ async def mongo_target_query_from_nq(nq_target, history):
 
 def to_regex(substr):
     return '.*{}.*'.format(substr)
+
+def to_string_query(values):
+    if 'eq' in values:
+        return values['eq']
+    if 'in' in values:
+        return {'$regex': to_regex(values['in'])}
+    if 'not' in values:
+        return {'$not': values['not']}
+    if 'not_in' in values:
+        return {'$not': {'$regex': to_regex(values['not_in'])}}
+    raise ValueError(values)
+
+def to_datetime_query(values):
+    if 'lt' in values:
+        return {'$lt': dateutil.parser.parse(values['lt'])}
+    if 'gt' in values:
+        return {'$gt': dateutil.parser.parse(values['gt'])}
+    if 'lte' in values:
+        return {'$lte': dateutil.parser.parse(values['lte'])}
+    if 'gte' in values:
+        return {'$gte': dateutil.parser.parse(values['gte'])}
+    raise ValueError(values)
+
+def mongo_notebook_query_from_nq(nq_notebook):
+    cond = {}
+    if 'path' in nq_notebook:
+        cond['path'] = to_string_query(nq_notebook['path'])
+    if 'server' in nq_notebook:
+        cond['server'] = to_string_query(nq_notebook['server'])
+    if 'mtime' in nq_notebook:
+        cond['mtime'] = to_datetime_query(nq_notebook['mtime'])
+    return cond
 
 def mongo_cell_query_element_from_nq(match):
     cellq = {}
@@ -56,7 +89,9 @@ def mongo_cell_query_element_from_nq(match):
     }
 
 def mongo_cell_query_from_nq(nq_cell):
-    cond = '$and' if 'and' in nq_cell else '$or'
+    cond = '$and' if 'and' in nq_cell else ('$or' if 'or' in nq_cell else None)
+    if cond is None:
+        return None
     matches = []
     for m in nq_cell['and'] if 'and' in nq_cell else nq_cell['or']:
         matches.append(mongo_cell_query_element_from_nq(m))
@@ -66,6 +101,10 @@ async def mongo_agg_query_from_nq(nq, history):
     agg = []
     if 'target' in nq:
         q = await mongo_target_query_from_nq(nq['target'], history)
+        if q is not None:
+            agg.append({'$match': q})
+    if 'notebook' in nq:
+        q = mongo_notebook_query_from_nq(nq['notebook'])
         if q is not None:
             agg.append({'$match': q})
     if 'cell' in nq:

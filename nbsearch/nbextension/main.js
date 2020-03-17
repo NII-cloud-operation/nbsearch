@@ -214,12 +214,12 @@ define([
             const baseq = search.get_cell_query(last_query.start, last_query.limit);
             search.execute(baseq)
                 .then(newq => {
-                    console.log('SUCCESS', newq);
+                    console.log(log_prefix, 'SUCCESS', newq);
                     last_query = newq;
                     diff_selected = {};
                 })
                 .catch(e => {
-                    console.error('ERROR', e);
+                    console.error(log_prefix, 'ERROR', e);
                 });
         });
 

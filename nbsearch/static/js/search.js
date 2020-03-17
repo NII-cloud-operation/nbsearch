@@ -25,7 +25,11 @@ define([
     function _get_target_query() {
         const ttype = $('#nbsearch-target-type').val();
         if (ttype == 'ALL') {
-            return { text: $('#nbsearch-target-text').val() };
+            const text = $('#nbsearch-target-text').val();
+            if (!text) {
+                return {};
+            }
+            return { text };
         }
         if ($('#nbsearch-target-related').is(':checked')) {
             return { history_related: ttype };
@@ -191,6 +195,9 @@ define([
         container.find('.nbsearch-cell-field').toArray().forEach(field => {
             const k = $(field).find('.nbsearch-cell-field-type').val();
             const v = $(field).find('.nbsearch-cell-field-value').val();
+            if ((k.startsWith('in_') || k.startsWith('not_in_')) && !v) {
+                return;
+            }
             r[k] = v;
         });
         return r;
@@ -241,8 +248,15 @@ define([
     function _get_cell_query() {
         const r = [];
         $('.nbsearch-cell-container').toArray().forEach(container => {
-            r.push(_get_cell_field_query($(container)));
+            const q = _get_cell_field_query($(container));
+            if (Object.keys(q).length == 0) {
+                return;
+            }
+            r.push(q);
         });
+        if (r.length == 0) {
+            return {};
+        }
         rc = {};
         rc[$('#nbsearch-cell-cond').val()] = r;
         return rc;
@@ -421,7 +435,7 @@ define([
                             .append($('<td></td>').text(notebook['server']))
                             .append($('<td></td>').text(notebook['mtime']))
                             .append($('<td></td>').text(notebook['atime']))
-                            .append($('<td></td>').text(notebook['cells'].length));
+                            .append($('<td></td>').text((notebook['cells'] || []).length));
                         tbody.append(tr);
                     });
                     $(`.${config.elemPrefix}page-number`).text(`${data.start}-${data.start + data.limit}`);
