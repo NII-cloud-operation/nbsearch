@@ -93,7 +93,10 @@ class HistoryHandler(BaseHandler):
         async for doc in mongo_q:
             notebooks.append({
                 'id': str(doc['_id']),
-                'text': doc['text'],
+                'name': doc['text'] if 'text' in doc else doc['name'],
+                'created': doc['created'].timestamp() if 'created' in doc else None,
+                'elapsed': doc['elapsed'] if 'elapsed' in doc else None,
+                'nq': doc['nq'] if 'nq' in doc else None,
                 'notebooks': None if 'notebook_ids' not in doc else len(doc['notebook_ids'])
             })
         resp = {
@@ -109,6 +112,7 @@ class HistoryHandler(BaseHandler):
         nq = self._get_nq()
         agg_q = await query.mongo_agg_query_from_nq(nq, self.history)
         sort = self._get_sort()
+        begin_t = datetime.now()
         if len(agg_q) == 0:
             mongo_q = self.collection.find({})
             if sort is not None:
@@ -124,8 +128,12 @@ class HistoryHandler(BaseHandler):
         notebook_ids = []
         async for doc in mongo_q:
             notebook_ids.append(str(doc['_id']))
+        elapsed = datetime.now() - begin_t
         await self.history.insert_one({
-            'text': json_data['name'],
+            'name': json_data['name'],
+            'nq': nq,
+            'created': datetime.now(),
+            'elapsed': elapsed.total_seconds(),
             'notebook_ids': notebook_ids
         })
         resp = {

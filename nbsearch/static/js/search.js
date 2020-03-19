@@ -50,77 +50,82 @@ define([
         return { history_in: ttype };
     }
 
-    function _create_target_query_ui(target) {
+    function get_histories() {
         return new Promise((resolve, reject) => {
-            const target_type = $('<select></select>')
-                .attr('id', 'nbsearch-target-type')
-                .append($('<option></option>').attr('value', 'ALL').text('全体'));
-            const target_type_c = $('<div></div>')
-                .addClass('nbsearch-category-body')
-                .append($('<span></span>').text('検索範囲:'))
-                .append(target_type);
-            const target_text = $('<input></input>')
-                .attr('id', 'nbsearch-target-text')
-                .attr('size', '80')
-                .attr('type', 'text');
-            const target_history = $('<input></input>')
-                .attr('id', 'nbsearch-target-related')
-                .attr('type', 'checkbox');
-            const target_related = $('<span></span>')
-                .addClass('nbsearch-target-disabled')
-                .append(target_history)
-                .append($('<label></label>').text('範囲を広げて履歴検索'));
-            const target_text_c = $('<div></div>')
-                .addClass('nbsearch-category-body')
-                .append($('<span></span>').text('文字列検索:'))
-                .append(target_text)
-                .append(target_related);
-
-            const field_updater = () => {
-                target_text.prop('disabled', target_type.val() != 'ALL');
-                target_history.prop('disabled', target_type.val() == 'ALL');
-                if (target_type.val() == 'ALL') {
-                    target_related.addClass('nbsearch-target-disabled');
-                } else {
-                    target_related.removeClass('nbsearch-target-disabled');
-                }
-            };
-            target_type.val('ALL');
-            field_updater();
-            target_type.change(field_updater);
             $.getJSON(`${config.urlPrefix}/v1/history`)
                 .done(data => {
                     console.log(log_prefix, 'histories', data);
-                    target_type.empty();
-                    target_type.append($('<option></option>').attr('value', 'ALL').text('全体'));
-                    data.histories.forEach(h => {
-                        target_type.append($('<option></option>')
-                            .attr('value', h.id)
-                            .text(`${h.text} (${h.id}, ノートブック数:${h.notebooks})`));
-                    });
-                    if (target && target.history_in) {
-                        target_type.val(target.history_in);
-                        target_history.prop('checked', false);
-                    } else if (target && target.history_related) {
-                        target_type.val(target.history_related);
-                        target_history.prop('checked', true);
-                    } else if (target && target.text) {
-                        target_type.val('ALL');
-                        target_text.val(target.text);
-                    }
-                    field_updater();
-
-                    resolve($('<div></div>')
-                        .addClass('nbsearch-category-section')
-                        .append($('<div></div>').addClass('nbsearch-category-header').text('検索対象:'))
-                        .append(target_type_c)
-                        .append(target_text_c));
+                    resolve(data);
                 })
                 .fail(err => {
                     console.error('Failed to retrieve histories');
                     reject(err);
                 });
         });
+    }
+
+    async function _create_target_query_ui(target) {
+        const target_type = $('<select></select>')
+            .attr('id', 'nbsearch-target-type')
+            .append($('<option></option>').attr('value', 'ALL').text('全体'));
+        const target_type_c = $('<div></div>')
+            .addClass('nbsearch-category-body')
+            .append($('<span></span>').text('検索範囲:'))
+            .append(target_type);
+        const target_text = $('<input></input>')
+            .attr('id', 'nbsearch-target-text')
+            .attr('size', '80')
+            .attr('type', 'text');
+        const target_history = $('<input></input>')
+            .attr('id', 'nbsearch-target-related')
+            .attr('type', 'checkbox');
+        const target_related = $('<span></span>')
+            .addClass('nbsearch-target-disabled')
+            .append(target_history)
+            .append($('<label></label>').text('範囲を広げて履歴検索'));
+        const target_text_c = $('<div></div>')
+            .addClass('nbsearch-category-body')
+            .append($('<span></span>').text('文字列検索:'))
+            .append(target_text)
+            .append(target_related);
+
+        const field_updater = () => {
+            target_text.prop('disabled', target_type.val() != 'ALL');
+            target_history.prop('disabled', target_type.val() == 'ALL');
+            if (target_type.val() == 'ALL') {
+                target_related.addClass('nbsearch-target-disabled');
+            } else {
+                target_related.removeClass('nbsearch-target-disabled');
+            }
+        };
+        target_type.val('ALL');
+        field_updater();
+        target_type.change(field_updater);
+        const data = await get_histories();
+        target_type.empty();
+        target_type.append($('<option></option>').attr('value', 'ALL').text('全体'));
+        data.histories.forEach(h => {
+            target_type.append($('<option></option>')
+                .attr('value', h.id)
+                .text(`検索結果 ${h.id} ノートブック数:${h.notebooks}`));
+        });
+        if (target && target.history_in) {
+            target_type.val(target.history_in);
+            target_history.prop('checked', false);
+        } else if (target && target.history_related) {
+            target_type.val(target.history_related);
+            target_history.prop('checked', true);
+        } else if (target && target.text) {
+            target_type.val('ALL');
+            target_text.val(target.text);
+        }
+        field_updater();
+
+        return $('<div></div>')
+            .addClass('nbsearch-category-section')
+            .append($('<div></div>').addClass('nbsearch-category-header').text('検索対象:'))
+            .append(target_type_c)
+            .append(target_text_c);
     }
 
     function _create_notebook_field_query_ui(fieldname, displayname, name, value) {
@@ -140,7 +145,7 @@ define([
             .attr('size', '50')
             .addClass(`nbsearch-notebook-${fieldname}-value`);
         const field_updater = () => {
-            fieldvalue.prop('disabled', fieldtype.val() != 'ALL');
+            fieldvalue.prop('disabled', fieldtype.val() == '');
         };
         fieldtype.val(name || '');
         field_updater();
@@ -171,7 +176,7 @@ define([
             .attr('size', '50')
             .addClass(`nbsearch-notebook-${fieldname}-value`);
         const field_updater = () => {
-            fieldvalue.prop('disabled', fieldtype.val() != 'ALL');
+            fieldvalue.prop('disabled', fieldtype.val() == '');
         };
         fieldtype.val(name || '');
         field_updater();
@@ -475,6 +480,7 @@ define([
         save,
         create_cell_query_ui,
         get_cell_query,
-        query_from_search_params
+        query_from_search_params,
+        get_histories,
     };
 });

@@ -3,12 +3,14 @@ define([
     'base/js/namespace',
     'base/js/utils',
     'require',
-    './search'
+    'bidi/bidi',
+    './search',
 ], function(
     $,
     Jupyter,
     utils,
     require,
+    bidi,
     search,
 ) {
     "use strict";
@@ -16,6 +18,8 @@ define([
     const mod_name = 'nbsearch';
     const log_prefix = '[' + mod_name + ']';
     const tab_id = 'nbsearch';
+
+    const isRTL = bidi.isMirroringEnabled();
 
     let last_query = {};
     let base_href = null;
@@ -113,6 +117,47 @@ define([
             .append(button.text(notebook['path']).append(loading_indicator));
     }
 
+    function open_save_dialog() {
+        console.log('show usage', self.db);
+
+        let dlg = null;
+        const text = $('<input></input>')
+            .attr('type', 'text')
+            .attr('size', '40');
+        const body = $('<div></div>')
+            .append($('<span></span>')
+                 .append($('<span></span>').text('履歴名:'))
+                 .append(text));
+        const buttons = {
+            'Close': {
+                class: 'btn-default',
+                click: () => {
+                    dlg.modal('hide');
+                }
+            },
+            'Save': {
+                class: 'btn-primary',
+                click: () => {
+                    search.save(last_query, text.val(), true)
+                        .then(result => {
+                            console.log(log_prefix, 'SUCCESS', result);
+                            dlg.modal('hide');
+                        })
+                        .catch(e => {
+                            console.error(log_prefix, 'ERROR', e);
+                            dlg.modal('hide');
+                        });
+                }
+            }
+        };
+
+        dlg = Jupyter.dialog.modal({
+            title: '検索結果の保存',
+            body: body,
+            buttons: buttons,
+        });
+    }
+
     function create_page_button() {
         const prev_button = $('<button></button>')
             .addClass('btn btn-link btn-xs')
@@ -192,13 +237,7 @@ define([
             .append($('<i></i>').addClass('fa fa-save'))
             .append('Save');
         save_button.click(() => {
-            search.save(last_query, `Test ${last_query.nq}`, true)
-                .then(result => {
-                    console.log(log_prefix, 'SUCCESS', result);
-                })
-                .catch(e => {
-                    console.error(log_prefix, 'ERROR', e);
-                });
+            open_save_dialog();
         });
 
         const page_number = $('<span></span>')
@@ -211,9 +250,135 @@ define([
             .append(diff_button);
     }
 
-    async function create_ui() {
+    async function create_history_ui() {
+        const headers = [['Name', 'name'], ['Created', 'created'],
+                         ['Elapsed', 'elapsed'], ['# of Notebooks', null]];
+        const header_elems = headers.map(cols => {
+            const colname = cols[0];
+            const colid = cols[1];
+            const label = $('<span></span>')
+                .addClass('nbsearch-history-column-order')
+                .text(colname);
+            return $('<th></th>')
+                .append(label);
+        });
+        const tbody = $('<tbody></tbody>')
+            .attr('id', 'nbsearch-histories')
+            .append($('<tr></tr>')
+                .append($('<td></td>')
+                    .attr('colspan', headers.length)
+                    .append('No history')));
+        const histories = $('<table></table>')
+            .addClass('table')
+            .append($('<thead></thead>')
+                .append(header_elems))
+            .append(tbody);
+        const title = $('<a></a>')
+            .attr('data-toggle', 'collapse')
+            .attr('data-target', '#nbsearch-history')
+            .attr('href', '#')
+            .attr('aria-expanded', 'false')
+            .text('検索履歴');
+        const heading = $('<div></div>')
+            .addClass('panel-heading')
+            .append(title);
+        const body = $('<div></div>')
+            .addClass('panel-body')
+            .append(histories);
+        const container = $('<div></div>')
+            .addClass('collapse')
+            .attr('id', 'nbsearch-history')
+            .attr('aria-expanded', 'false')
+            .append(body);
+        title.each(function(index, el) {
+            var $link = $(el);
+            var $icon = $('<i />')
+                .addClass('fa fa-caret-down');
+            $link.append($icon);
+            $link.down = true;
+            $link.click(function () {
+                if ($link.down) {
+                    $link.down = false;
+                    $icon.animate({ borderSpacing: 90 }, {
+                        step: function(now,fx) {
+                            isRTL ? $icon.css('transform','rotate(' + now + 'deg)') : $icon.css('transform','rotate(-' + now + 'deg)');
+                        }
+                    }, 250);
+                } else {
+                    $link.down = true;
+                    // See comment above.
+                    $icon.animate({ borderSpacing: 0 }, {
+                        step: function(now,fx) {
+                            isRTL ? $icon.css('transform','rotate(' + now + 'deg)') : $icon.css('transform','rotate(-' + now + 'deg)');
+                        }
+                    }, 250);
+                }
+            });
+        });
+
+        const data = await search.get_histories();
+        tbody.empty();
+        data.histories.forEach(history => {
+            let name = history['name'];
+            if (name.length > 40) {
+                name = name.substring(0, 38) + '...';
+            }
+            const fill_search_button = $('<button></button>')
+                .addClass('btn btn-xs')
+                .append($('<i></i>').addClass('fa fa-search'));
+            const plus_search_button = $('<button></button>')
+                .addClass('btn btn-xs')
+                .append($('<i></i>').addClass('fa fa-search-plus'));
+            fill_search_button.click(() => {
+                if (!history.nq) {
+                    console.error(log_prefix, 'No queries for: ', history.id);
+                    return;
+                }
+                const query = { nq: JSON.stringify(history.nq) };
+                create_query_ui(query)
+                    .then(ui => {
+                        $('#nbsearch-query-panel').empty();
+                        $('#nbsearch-query-panel').append(ui);
+                        const baseq = search.get_cell_query();
+                        run_search(baseq)
+                            .then(newq => {
+                                $('.nbsearch-save-button').prop('disabled', false);
+                                $('.nbsearch-column-header').prop('disabled', false);
+                                console.log(log_prefix, 'SUCCESS', newq);
+                                last_query = newq;
+                                diff_selected = {};
+                            })
+                            .catch(e => {
+                                console.error(log_prefix, 'ERROR', e);
+                            });
+                    })
+                    .catch(err => {
+                        console.error(log_prefix, 'Failed to create search UI', err);
+                    });
+            });
+            plus_search_button.click(() => {
+                $('#nbsearch-target-type').val(history.id);
+            });
+            const tr = $('<tr></tr>')
+                .append($('<td></td>')
+                    .text(`${name} (${history['id']})`)
+                    .append(fill_search_button)
+                    .append(plus_search_button)) //.append(createLink(notebook)))
+                .append($('<td></td>').text(history['created'] ? new Date(history['created'] * 1000).toString() : ''))
+                .append($('<td></td>').text(history['elapsed'] ? `${parseInt(history['elapsed'])}sec` : ''))
+                .append($('<td></td>').text(history['notebooks']));
+            tbody.append(tr);
+        });
+
+        return $('<div></div>')
+            .addClass('panel panel-default')
+            .append(heading)
+            .append(container);
+    }
+
+    async function create_query_ui(query) {
         const url = new URL(window.location);
-        last_query = search.query_from_search_params(url.searchParams);
+        last_query = Object.assign({}, query);
 
         const headers = [['Path', 'path'], ['Server', 'server'],
                          ['MTime', 'mtime'], ['ATime', 'atime'],
@@ -319,9 +484,8 @@ define([
     async function insert_tab() {
         var tab_text = 'NBSearch';
 
-        $('<div/>')
+        const tab_body = $('<div/>')
             .attr('id', tab_id)
-            .append(await create_ui())
             .addClass('tab-pane')
             .appendTo('.tab-content');
 
@@ -341,6 +505,12 @@ define([
 
         // select tab if searchparams is set appropriately
         const url = new URL(window.location);
+
+        const query = search.query_from_search_params(url.searchParams);
+        tab_body.append(await create_history_ui());
+        tab_body.append($('<div></div>')
+            .attr('id', 'nbsearch-query-panel')
+            .append(await create_query_ui(query)));
         if (url.searchParams.get(tab_id) == 'yes') {
             tab_link.click();
         }
