@@ -61,6 +61,7 @@ define([
                 .append(target_type);
             const target_text = $('<input></input>')
                 .attr('id', 'nbsearch-target-text')
+                .attr('size', '80')
                 .attr('type', 'text');
             const target_history = $('<input></input>')
                 .attr('id', 'nbsearch-target-related')
@@ -126,24 +127,31 @@ define([
         const fieldtype = $('<select></select>')
             .addClass(`nbsearch-notebook-${fieldname}-type`);
         [
-            ['eq', `${displayname}が一致`],
-            ['not', `${displayname}が一致しない`],
-            ['in', `${displayname}に含む`],
-            ['not_in', `${displayname}に含まない`],
+            ['', ''],
+            ['eq', 'に一致'],
+            ['not', 'に一致しない'],
+            ['in', 'を含む'],
+            ['not_in', 'を含まない'],
         ].forEach(v => {
             fieldtype.append($('<option></option>').attr('value', v[0]).text(v[1]));
         });
-        fieldtype.val(name);
         const fieldvalue = $('<input></input>')
             .attr('type', 'text')
+            .attr('size', '50')
             .addClass(`nbsearch-notebook-${fieldname}-value`);
+        const field_updater = () => {
+            fieldvalue.prop('disabled', fieldtype.val() != 'ALL');
+        };
+        fieldtype.val(name || '');
+        field_updater();
+        fieldtype.change(field_updater);
         fieldvalue.val(value);
         return $('<div></div>')
             .addClass(`nbsearch-notebook-${fieldname}`)
             .addClass('nbsearch-category-body')
-            .append($('<span></span>').text(displayname))
-            .append(fieldtype)
-            .append(fieldvalue);
+            .append($('<span></span>').text(`${displayname}:`))
+            .append(fieldvalue)
+            .append(fieldtype);
     }
 
     function _create_notebook_mtime_query_ui(name, value) {
@@ -152,20 +160,27 @@ define([
         const fieldtype = $('<select></select>')
             .addClass(`nbsearch-notebook-${fieldname}-type`);
         [
+            ['', ''],
             ['gte', '以後に更新'],
             ['lte', '以前に更新'],
         ].forEach(v => {
             fieldtype.append($('<option></option>').attr('value', v[0]).text(v[1]));
         });
-        fieldtype.val(name);
         const fieldvalue = $('<input></input>')
             .attr('type', 'text')
+            .attr('size', '50')
             .addClass(`nbsearch-notebook-${fieldname}-value`);
+        const field_updater = () => {
+            fieldvalue.prop('disabled', fieldtype.val() != 'ALL');
+        };
+        fieldtype.val(name || '');
+        field_updater();
+        fieldtype.change(field_updater);
         fieldvalue.val(value);
         return $('<div></div>')
             .addClass(`nbsearch-notebook-${fieldname}`)
             .addClass('nbsearch-category-body')
-            .append($('<span></span>').text(displayname))
+            .append($('<span></span>').text(`${displayname}:`))
             .append(fieldvalue)
             .append(fieldtype);
     }
@@ -174,9 +189,12 @@ define([
         const query = {};
         ['path', 'server', 'mtime'].forEach(fieldname => {
             const k = $(`.nbsearch-notebook-${fieldname}-type`).val();
+            if (!k) {
+                return;
+            }
             const value = $(`.nbsearch-notebook-${fieldname}-value`).val();
             if (!value) {
-              return;
+                return;
             }
             const o = {};
             o[k] = value;
@@ -246,7 +264,7 @@ define([
         fieldvalue.val(value);
         const container = $('<span></span>');
         const remove_button = $('<button></button>')
-            .addClass('btn btn-default')
+            .addClass('btn btn-xs')
             .append($('<i></i>').addClass('fa fa-times'));
         remove_button.click(() => {
             container.remove();
@@ -280,7 +298,7 @@ define([
             .addClass('nbsearch-cell-container');
         const fields = $('<span></span>');
         const add_button = $('<button></button>')
-            .addClass('btn btn-default')
+            .addClass('btn btn-xs')
             .append($('<i></i>').addClass('fa fa-plus'));
         Object.keys(cell).forEach((k, field_index) => {
             fields.append(_create_cell_field(k, cell[k]));
@@ -289,7 +307,7 @@ define([
             fields.append(_create_cell_field('meme', ''))
         })
         const remove_button = $('<button></button>')
-            .addClass('btn btn-default')
+            .addClass('btn btn-default btn-xs')
             .append($('<i></i>').addClass('fa fa-trash'));
         remove_button.click(() => {
             container.remove();
@@ -325,7 +343,7 @@ define([
             cell_conds.append(_create_cell_element_query_ui(c, index));
         });
         const cell_add_button = $('<button></button>')
-            .addClass('btn btn-default')
+            .addClass('btn btn-default btn-xs')
             .append($('<i></i>').addClass('fa fa-plus'))
             .append('セル条件を追加');
         cell_add_button.click(() => {

@@ -12,6 +12,19 @@
 
 .nbsearch-category-body {
   margin-left: 1em;
+  margin-bottom: 0.4em;
+}
+
+.nbsearch-category-body input {
+  vertical-align: middle;
+  margin-left: 0.2em;
+  margin-right: 0.2em;
+}
+
+.nbsearch-category-body select {
+  vertical-align: middle;
+  margin-left: 0.2em;
+  margin-right: 0.2em;
 }
 
 .nbsearch-target-disabled {
@@ -22,6 +35,6 @@
   color: #ccc;
 }
 
-.nbsearch-cell-field {
-  margin: 1em 0.5em;
+.nbsearch-cell-container {
+  margin: 1em 1em;
 }
