@@ -343,26 +343,6 @@ define([
             .append(cell_conds_add);
     }
 
-    function _create_project_query_ui(project) {
-        const cell_cond = $('<select></select>')
-            .attr('id', 'nbsearch-retrieve')
-            .append($('<option></option>').attr('value', 'original').text('何もしない'))
-            .append($('<option></option>').attr('value', 'common_meme').text('MEME共通セット'))
-            .append($('<option></option>').attr('value', 'markdown_section').text('Markdownセルセット'));
-        const retrieve = project.retrieve || 'original';
-        cell_cond.val(retrieve);
-        return $('<div></div>')
-            .addClass('nbsearch-category-section')
-            .append($('<div></div>').addClass('nbsearch-category-header').text('検索結果の抽出:'))
-            .append($('<div></div>').addClass('nbsearch-category-body').append(cell_cond));
-    }
-
-    function _get_project_query() {
-        return {
-          retrieve: $('#nbsearch-retrieve').val(),
-        };
-    }
-
     async function create_cell_query_ui(query) {
         let nq = {};
         if (query && !query.nq && query.q) {
@@ -378,8 +358,7 @@ define([
         return $('<div></div>')
             .append(await _create_target_query_ui(nq.target || {}))
             .append(_create_notebook_query_ui(nq.notebook || {}))
-            .append(_create_cell_query_ui(nq.cell || {}))
-            .append(_create_project_query_ui(nq.project || {}));
+            .append(_create_cell_query_ui(nq.cell || {}));
     }
 
     function get_cell_query(start, limit, sort) {
@@ -388,7 +367,6 @@ define([
                 target: _get_target_query(),
                 notebook: _get_notebook_query(),
                 cell: _get_cell_query(),
-                project: _get_project_query(),
             })
         };
         if (start !== undefined) {
