@@ -15,6 +15,7 @@ define([
 
     const mod_name = 'nbsearch';
     const log_prefix = '[' + mod_name + ']';
+    const tab_id = 'nbsearch';
 
     let last_query = {};
     let base_href = null;
@@ -23,6 +24,20 @@ define([
     function get_api_base_url() {
         const base_url = utils.get_body_data('baseUrl');
         return `${base_url}${base_url.endsWith('/') ? '' : '/'}nbsearch`;
+    }
+
+    async function run_search(query) {
+        let q = query ? Object.assign({}, query) : {};
+        q[tab_id] = 'yes';
+        window.history.pushState(null, null, `?${$.param(q)}`);
+
+        const newq = await search.execute(query);
+
+        q = newq ? Object.assign({}, newq) : {};
+        q[tab_id] = 'yes';
+        window.history.pushState(null, null, `?${$.param(q)}`);
+
+        return newq;
     }
 
     function get_base_path() {
@@ -113,7 +128,7 @@ define([
                 last_query.limit,
                 last_query.sort
             );
-            search.execute(baseq)
+            run_search(baseq)
                 .then(newq => {
                     console.log(log_prefix, 'SUCCESS', newq);
                     last_query = newq;
@@ -133,7 +148,7 @@ define([
                 last_query.limit,
                 last_query.sort
             );
-            search.execute(baseq)
+            run_search(baseq)
                 .then(newq => {
                     console.log(log_prefix, 'SUCCESS', newq);
                     last_query = newq;
@@ -197,6 +212,9 @@ define([
     }
 
     async function create_ui() {
+        const url = new URL(window.location);
+        last_query = search.query_from_search_params(url.searchParams);
+
         const headers = [['Path', 'path'], ['Server', 'server'],
                          ['MTime', 'mtime'], ['ATime', 'atime'],
                          ['# of Cells', null]];
@@ -210,6 +228,12 @@ define([
                 .prop('disabled', true)
                 .text(colname)
                 .append(label);
+            const sort = url.searchParams.get('sort');
+            if (sort == `${colid}-asc`) {
+                label.append($('<i></i>').addClass('fa fa-angle-up'));
+            } else if (sort == `${colid}-desc`) {
+                label.append($('<i></i>').addClass('fa fa-angle-down'));
+            }
             colbutton.click(() => {
                 if (!last_query) {
                     return;
@@ -226,7 +250,7 @@ define([
                 const baseq = search.get_cell_query(
                     undefined, undefined, sort
                 );
-                search.execute(baseq)
+                run_search(baseq)
                     .then(newq => {
                         console.log(log_prefix, 'SUCCESS', newq);
                         last_query = newq;
@@ -262,7 +286,7 @@ define([
             const baseq = search.get_cell_query(
                 last_query.start, last_query.limit, last_query.sort
             );
-            search.execute(baseq)
+            run_search(baseq)
                 .then(newq => {
                     $('.nbsearch-save-button').prop('disabled', false);
                     $('.nbsearch-column-header').prop('disabled', false);
@@ -279,7 +303,7 @@ define([
             .addClass('row list_toolbar')
             .append($('<div></div>')
                 .addClass('col-sm-12 no-padding nbsearch-search-panel')
-                .append(await search.create_cell_query_ui())
+                .append(await search.create_cell_query_ui(last_query))
                 .append(search_button)
                 .append(loading_indicator));
         const error = $('<div></div>')
@@ -294,7 +318,6 @@ define([
 
     async function insert_tab() {
         var tab_text = 'NBSearch';
-        var tab_id = 'nbsearch';
 
         $('<div/>')
             .attr('id', tab_id)
@@ -307,15 +330,18 @@ define([
             .attr('href', '#' + tab_id)
             .attr('data-toggle', 'tab')
             .on('click', function (evt) {
-                window.history.pushState(null, null, '#' + tab_id);
+                 const q = last_query ? Object.assign({}, last_query) : {};
+                 q[tab_id] = 'yes';
+                 window.history.pushState(null, null, `?${$.param(q)}`);
             });
 
         $('<li>')
             .append(tab_link)
             .appendTo('#tabs');
 
-        // select tab if hash is set appropriately
-        if (window.location.hash == '#' + tab_id) {
+        // select tab if searchparams is set appropriately
+        const url = new URL(window.location);
+        if (url.searchParams.get(tab_id) == 'yes') {
             tab_link.click();
         }
     }

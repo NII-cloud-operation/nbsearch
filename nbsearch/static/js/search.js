@@ -13,13 +13,26 @@ define([
     }
 
     function query_from_search_params(search_params) {
+        const baseq = {};
+        const start = search_params.get('start');
+        const limit = search_params.get('limit');
+        const sort = search_params.get('sort');
+        if (start !== undefined && start !== null) {
+            baseq.start = parseInt(start);
+        }
+        if (limit !== undefined && limit !== null) {
+            baseq.limit = parseInt(limit);
+        }
+        if (sort !== undefined && sort !== null) {
+            baseq.sort = sort;
+        }
         const nq = search_params.get('nq');
         if (nq) {
-          return {nq: JSON.stringify(JSON.parse(nq))};
+          return Object.assign(baseq, {nq: JSON.stringify(JSON.parse(nq))});
         }
         const q = search_params.get('q');
         const meme = search_params.get('meme');
-        return q != null ? { q } : { meme };
+        return Object.assign(baseq, q != null ? { q } : { meme });
     }
 
     function _get_target_query() {
