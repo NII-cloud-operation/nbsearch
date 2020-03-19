@@ -87,6 +87,9 @@ class HistoryHandler(BaseHandler):
         if self.get_query_argument('action', None) == 'save':
             await self.save({ 'name': self.get_query_argument('name', None) })
             return
+        if self.get_query_argument('action', None) == 'remove':
+            await self.remove(self.get_query_argument('id', None))
+            return
         nq = self._get_nq()
         mongo_q = self.history.find()
         notebooks = []
@@ -107,6 +110,15 @@ class HistoryHandler(BaseHandler):
     async def put(self):
         json_data = tornado.escape.json_decode(self.request.body)
         await self.save(json_data)
+
+    async def delete(self):
+        json_data = tornado.escape.json_decode(self.request.body)
+        await self.remove(json_data['id'])
+
+    async def remove(self, id):
+        file_id = ObjectId(id)
+        result = await self.history.delete_one({'_id': file_id})
+        self.write({ 'status': 'removed' })
 
     async def save(self, json_data):
         nq = self._get_nq()

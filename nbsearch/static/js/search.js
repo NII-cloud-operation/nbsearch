@@ -438,6 +438,35 @@ define([
         });
     }
 
+    function remove(history_id, byget) {
+        return new Promise((resolve, reject) => {
+            $(`#${config.elemPrefix}loading`).show();
+            $(`#${config.elemPrefix}error-connect`).hide();
+
+            const newq = {};
+            if (byget) {
+                newq.action = 'remove';
+                newq.id = history_id;
+            }
+            var jqxhr = $.ajax({
+                type: byget ? 'GET' : 'DELETE',
+                url: `${config.urlPrefix}/v1/history?${$.param(newq)}`,
+                contentType: 'application/json',
+                data: JSON.stringify({ id: history_id }),
+            })
+                .done(data => {
+                    console.log(log_prefix, 'result', data);
+                    $(`#${config.elemPrefix}loading`).hide();
+                    resolve(data);
+                })
+                .fail(err => {
+                    $(`#${config.elemPrefix}loading`).hide();
+                    $(`#${config.elemPrefix}error-connect`).show();
+                    reject(err);
+                });
+        });
+    }
+
     function execute(query_) {
         const query = Object.assign({}, query_);
         console.log(log_prefix, 'QUERY', query);
@@ -478,6 +507,7 @@ define([
         init,
         execute,
         save,
+        remove,
         create_cell_query_ui,
         get_cell_query,
         query_from_search_params,

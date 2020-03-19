@@ -250,9 +250,85 @@ define([
             .append(diff_button);
     }
 
-    async function create_history_ui() {
+    function refresh_histories(data) {
+        const tbody = $('#nbsearch-histories');
+        tbody.empty();
+        data.histories.forEach(history => {
+            let name = history['name'];
+            if (name.length > 40) {
+                name = name.substring(0, 38) + '...';
+            }
+            const fill_search_button = $('<button></button>')
+                .addClass('btn btn-xs')
+                .append($('<i></i>').addClass('fa fa-search'));
+            const plus_search_button = $('<button></button>')
+                .addClass('btn btn-xs')
+                .append($('<i></i>').addClass('fa fa-search-plus'));
+            fill_search_button.click(() => {
+                if (!history.nq) {
+                    console.error(log_prefix, 'No queries for: ', history.id);
+                    return;
+                }
+                const query = { nq: JSON.stringify(history.nq) };
+                create_query_ui(query)
+                    .then(ui => {
+                        $('#nbsearch-query-panel').empty();
+                        $('#nbsearch-query-panel').append(ui);
+                        const baseq = search.get_cell_query();
+                        run_search(baseq)
+                            .then(newq => {
+                                $('.nbsearch-save-button').prop('disabled', false);
+                                $('.nbsearch-column-header').prop('disabled', false);
+                                console.log(log_prefix, 'SUCCESS', newq);
+                                last_query = newq;
+                                diff_selected = {};
+                            })
+                            .catch(e => {
+                                console.error(log_prefix, 'ERROR', e);
+                            });
+                    })
+                    .catch(err => {
+                        console.error(log_prefix, 'Failed to create search UI', err);
+                    });
+            });
+            plus_search_button.click(() => {
+                $('#nbsearch-target-type').val(history.id);
+            });
+            const remove_button = $('<button></button>')
+                .addClass('btn btn-xs')
+                .append($('<i></i>').addClass('fa fa-trash'));
+            remove_button.click(() => {
+                search.remove(history.id, true)
+                    .then(result => {
+                        search.get_histories()
+                            .then(data => {
+                                refresh_histories(data);
+                            })
+                            .catch(err => {
+                                console.error(log_prefix, 'Failed to load history', err);
+                            });
+                    })
+                    .catch(err => {
+                        console.error(log_prefix, 'Failed to remove history', err);
+                    });
+            });
+            const tr = $('<tr></tr>')
+                .append($('<td></td>')
+                    .text(`${name} (${history['id']})`)
+                    .append(fill_search_button)
+                    .append(plus_search_button)) //.append(createLink(notebook)))
+                .append($('<td></td>').text(history['created'] ? new Date(history['created'] * 1000).toISOString() : ''))
+                .append($('<td></td>').text(history['elapsed'] ? `${parseInt(history['elapsed'])}sec` : ''))
+                .append($('<td></td>').text(history['notebooks']))
+                .append($('<td></td>').append(remove_button));
+            tbody.append(tr);
+        });
+    }
+
+    function create_history_ui() {
         const headers = [['Name', 'name'], ['Created', 'created'],
-                         ['Elapsed', 'elapsed'], ['# of Notebooks', null]];
+                         ['Elapsed', 'elapsed'], ['# of Notebooks', null],
+                         ['', null]];
         const header_elems = headers.map(cols => {
             const colname = cols[0];
             const colid = cols[1];
@@ -316,59 +392,13 @@ define([
             });
         });
 
-        const data = await search.get_histories();
-        tbody.empty();
-        data.histories.forEach(history => {
-            let name = history['name'];
-            if (name.length > 40) {
-                name = name.substring(0, 38) + '...';
-            }
-            const fill_search_button = $('<button></button>')
-                .addClass('btn btn-xs')
-                .append($('<i></i>').addClass('fa fa-search'));
-            const plus_search_button = $('<button></button>')
-                .addClass('btn btn-xs')
-                .append($('<i></i>').addClass('fa fa-search-plus'));
-            fill_search_button.click(() => {
-                if (!history.nq) {
-                    console.error(log_prefix, 'No queries for: ', history.id);
-                    return;
-                }
-                const query = { nq: JSON.stringify(history.nq) };
-                create_query_ui(query)
-                    .then(ui => {
-                        $('#nbsearch-query-panel').empty();
-                        $('#nbsearch-query-panel').append(ui);
-                        const baseq = search.get_cell_query();
-                        run_search(baseq)
-                            .then(newq => {
-                                $('.nbsearch-save-button').prop('disabled', false);
-                                $('.nbsearch-column-header').prop('disabled', false);
-                                console.log(log_prefix, 'SUCCESS', newq);
-                                last_query = newq;
-                                diff_selected = {};
-                            })
-                            .catch(e => {
-                                console.error(log_prefix, 'ERROR', e);
-                            });
-                    })
-                    .catch(err => {
-                        console.error(log_prefix, 'Failed to create search UI', err);
-                    });
+        search.get_histories()
+            .then(data => {
+                refresh_histories(data);
+            })
+            .catch(err => {
+                console.error(log_prefix, 'Failed to load history', err);
             });
-            plus_search_button.click(() => {
-                $('#nbsearch-target-type').val(history.id);
-            });
-            const tr = $('<tr></tr>')
-                .append($('<td></td>')
-                    .text(`${name} (${history['id']})`)
-                    .append(fill_search_button)
-                    .append(plus_search_button)) //.append(createLink(notebook)))
-                .append($('<td></td>').text(history['created'] ? new Date(history['created'] * 1000).toString() : ''))
-                .append($('<td></td>').text(history['elapsed'] ? `${parseInt(history['elapsed'])}sec` : ''))
-                .append($('<td></td>').text(history['notebooks']));
-            tbody.append(tr);
-        });
 
         return $('<div></div>')
             .addClass('panel panel-default')
@@ -507,7 +537,7 @@ define([
         const url = new URL(window.location);
 
         const query = search.query_from_search_params(url.searchParams);
-        tab_body.append(await create_history_ui());
+        tab_body.append(create_history_ui());
         tab_body.append($('<div></div>')
             .attr('id', 'nbsearch-query-panel')
             .append(await create_query_ui(query)));
