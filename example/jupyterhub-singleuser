@@ -27,7 +27,9 @@ run-hooks () {
     echo "$0: done running hooks in $1"
 }
 
-run-hooks /usr/local/bin/start-notebook.d
-run-hooks /usr/local/bin/before-notebook.d
+if [[ -z "${SUPERVISOR_INITIALIZED}" ]]; then
+    run-hooks /usr/local/bin/start-notebook.d
+    run-hooks /usr/local/bin/before-notebook.d
+fi
 
 /opt/conda/bin/_jupyterhub-singleuser
