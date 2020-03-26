@@ -10,8 +10,7 @@ def nq_from_q(q):
 def nq_from_meme(meme):
     return {
       'cell': {
-        'type': 'and',
-        'patterns': [{'meme': meme}]
+        'and': [{'in_meme': meme}]
       }
     }
 
@@ -60,28 +59,46 @@ def mongo_notebook_query_from_nq(nq_notebook):
         cond['mtime'] = to_datetime_query(nq_notebook['mtime'])
     return cond
 
-def mongo_cell_query_element_from_nq(match):
+def _mongo_cell_query_element_from_nq(key, match):
     cellq = {}
-    if 'meme' in match:
+    if key == 'meme':
         cellq['metadata.lc_cell_meme.current'] = match['meme']
-    elif 'in_meme' in match:
+    elif key == 'in_meme':
         cellq['metadata.lc_cell_meme.current'] = {'$regex': to_regex(match['in_meme'])}
-    if 'prev_meme' in match:
+    elif key == 'prev_meme':
         cellq['metadata.lc_cell_meme.previous'] = match['prev_meme']
-    elif 'in_prev_meme' in match:
+    elif key == 'in_prev_meme':
         cellq['metadata.lc_cell_meme.previous'] = {'$regex': to_regex(match['in_prev_meme'])}
-    if 'next_meme' in match:
+    elif key == 'next_meme':
         cellq['metadata.lc_cell_meme.next'] = match['next_meme']
-    elif 'in_next_meme' in match:
+    elif key == 'in_next_meme':
         cellq['metadata.lc_cell_meme.next'] = {'$regex': to_regex(match['in_next_meme'])}
-    if 'in_code' in match:
+    elif key == 'in_code':
         cellq['cell_type'] = 'code'
         cellq['source'] = {'$regex': to_regex(match['in_code'])}
-    if 'in_markdown' in match:
+    elif key == 'in_markdown':
         cellq['cell_type'] = 'markdown'
         cellq['source'] = {'$regex': to_regex(match['in_markdown'])}
-    if 'in_output' in match:
+    elif key == 'in_output':
         cellq['cell.outputs.text'] = {'$regex': to_regex(match['in_output'])}
+    else:
+        raise KeyError('Unexpected key: {}'.format(key))
+    return cellq
+
+def mongo_cell_query_element_from_nq(match):
+    not_cellq = {}
+    cellq = {}
+    for key in match.keys():
+        if key.startswith('not_'):
+            partq = _mongo_cell_query_element_from_nq(key[4:], {key[4:]: match[key]})
+            not_cellq.update(partq)
+        else:
+            partq = _mongo_cell_query_element_from_nq(key, match)
+            cellq.update(partq)
+    if len(not_cellq) > 0 and len(cellq) == 0:
+        cellq['$not'] = not_cellq
+    elif len(not_cellq) > 0:
+        cellq = {'$and': [cellq, {'$not': not_cellq}]}
     return {
       'cells': {
         '$elemMatch': cellq
