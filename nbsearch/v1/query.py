@@ -33,7 +33,6 @@ async def mongo_target_query_from_nq(nq_target, history, notebooks):
           {'$match': {'meme': {'$ne': None}}},
           {'$project': {'meme': {'$substr': ['$meme', 0, 36]}}},
           {'$group': {'_id': '$meme', 'count': {'$sum': 1}}},
-          {'$match': {'count': {'$gt': 1}}},
           {'$sort': {'count': -1}}])
         cell_ids = []
         async for doc in cell_ids_result:
