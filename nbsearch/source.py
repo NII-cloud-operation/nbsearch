@@ -51,6 +51,8 @@ class LocalSource(Source):
 
     def _get_files(self, actual_base_dir, db_base_dir):
         for name in os.listdir(actual_base_dir):
+            if name.startswith('.'):
+                continue
             actual_path = os.path.join(actual_base_dir, name)
             db_path = os.path.join(db_base_dir, name)
             if os.path.isdir(actual_path):

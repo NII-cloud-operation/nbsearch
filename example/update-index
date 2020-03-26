@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [ ! ${file: -6} == ".ipynb" ] ; then
+    exit 0
+fi
+
+if [[ -f /home/$NB_USER/.nbsearch/config_local.py ]] ; then
+    exit 0
+fi
+
+jupyter nbsearch update-index /home/$NB_USER/.jupyter/jupyter_notebook_config.py local $1
+exit 0

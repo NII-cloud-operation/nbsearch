@@ -103,9 +103,10 @@ class UpdateIndexHandler(LoggingConfigurable):
             notebook_id = newnb.inserted_id
         else:
             # Updated notebook
-            notebook_id = old_notebooks[0]._id
+            notebook_id = old_notebooks[0]['_id']
             self.log.info('update: _id={}, notebook={}'.format(notebook_id, file))
-            collection.update_one({'_id': notebook_id}, notebook)
+            collection.update_one({'_id': notebook_id}, {'$set': notebook})
+            gfs.delete(notebook_id)
         gfs.put(json.dumps(content).encode('utf8'), _id=notebook_id)
 
     def _normalize_key(self, key):
