@@ -40,12 +40,11 @@ async def test_mongo_query_from_nq():
 
     nq = {'cell': {'and': [{'not_in_code': 'CODE'}]}}
     mongoq = await query.mongo_agg_query_from_nq(nq, history)
-    assert mongoq == [{'$match': {'$and': [{'cells': {'$elemMatch': {'$not': {'cell_type': 'code', 'source': {'$regex': '.*CODE.*'}}}}}]}}]
+    assert mongoq == [{'$match': {'$and': [{'cells': {'$elemMatch': {'cell_type': 'code', 'source': {'$not': {'$regex': '.*CODE.*'}}}}}]}}]
 
-    nq = {'cell': {'and': [{'not_in_code': 'CODE', 'in_markdown': 'MARKDOWN'}]}}
+    nq = {'cell': {'and': [{'not_in_code': 'CODE', 'in_output': 'OUTPUT'}]}}
     mongoq = await query.mongo_agg_query_from_nq(nq, history)
-    print(mongoq)
-    assert mongoq == [{'$match': {'$and': [{'cells': {'$elemMatch': {'$and': [{'cell_type': 'markdown', 'source': {'$regex': '.*MARKDOWN.*'}}, {'$not': {'cell_type': 'code', 'source': {'$regex': '.*CODE.*'}}}]}}}]}}]
+    assert mongoq == [{'$match': {'$and': [{'cells': {'$elemMatch': {'cell_type': 'code', 'source': {'$not': {'$regex': '.*CODE.*'}}, 'cell.outputs.text': {'$regex': '.*OUTPUT.*'}}}}]}}]
 
     nq = {'cell': {'and': [{'in_markdown': 'MARKDOWN'}]}}
     mongoq = await query.mongo_agg_query_from_nq(nq, history)

@@ -24,18 +24,21 @@ async def mongo_target_query_from_nq(nq_target, history):
         cond['_id'] = {'$in': notebook_ids}
     return cond
 
-def to_regex(substr):
-    return '.*{}.*'.format(substr)
+def to_regex(substr, not_condition=False):
+    q = {'$regex': '.*{}.*'.format(substr)}
+    if not not_condition:
+        return q
+    return {'$not': q}
 
 def to_string_query(values):
     if 'eq' in values:
         return values['eq']
     if 'in' in values:
-        return {'$regex': to_regex(values['in'])}
+        return to_regex(values['in'])
     if 'not' in values:
-        return {'$not': values['not']}
+        return {'$ne': values['not']}
     if 'not_in' in values:
-        return {'$not': {'$regex': to_regex(values['not_in'])}}
+        return to_regex(values['not_in'], not_condition=True)
     raise ValueError(values)
 
 def to_datetime_query(values):
@@ -59,46 +62,40 @@ def mongo_notebook_query_from_nq(nq_notebook):
         cond['mtime'] = to_datetime_query(nq_notebook['mtime'])
     return cond
 
-def _mongo_cell_query_element_from_nq(key, match):
+def _mongo_cell_query_element_from_nq(key, match, not_condition=False):
     cellq = {}
     if key == 'meme':
-        cellq['metadata.lc_cell_meme.current'] = match['meme']
+        cellq['metadata.lc_cell_meme.current'] = {'$ne': match['meme']} if not_condition else match['meme']
     elif key == 'in_meme':
-        cellq['metadata.lc_cell_meme.current'] = {'$regex': to_regex(match['in_meme'])}
+        cellq['metadata.lc_cell_meme.current'] = to_regex(match['in_meme'], not_condition=not_condition)
     elif key == 'prev_meme':
-        cellq['metadata.lc_cell_meme.previous'] = match['prev_meme']
+        cellq['metadata.lc_cell_meme.previous'] = {'$ne': match['prev_meme']} if not_condition else match['prev_meme']
     elif key == 'in_prev_meme':
-        cellq['metadata.lc_cell_meme.previous'] = {'$regex': to_regex(match['in_prev_meme'])}
+        cellq['metadata.lc_cell_meme.previous'] = to_regex(match['in_prev_meme'], not_condition=not_condition)
     elif key == 'next_meme':
-        cellq['metadata.lc_cell_meme.next'] = match['next_meme']
+        cellq['metadata.lc_cell_meme.next'] = {'$ne': match['next_meme']} if not_condition else match['next_meme']
     elif key == 'in_next_meme':
-        cellq['metadata.lc_cell_meme.next'] = {'$regex': to_regex(match['in_next_meme'])}
+        cellq['metadata.lc_cell_meme.next'] = to_regex(match['in_next_meme'], not_condition=not_condition)
     elif key == 'in_code':
-        cellq['cell_type'] = 'code'
-        cellq['source'] = {'$regex': to_regex(match['in_code'])}
+        q = {'cell_type': 'code', 'source': to_regex(match['in_code'], not_condition=not_condition)}
+        cellq.update(q)
     elif key == 'in_markdown':
-        cellq['cell_type'] = 'markdown'
-        cellq['source'] = {'$regex': to_regex(match['in_markdown'])}
+        q = {'cell_type': 'markdown', 'source': to_regex(match['in_markdown'], not_condition=not_condition)}
+        cellq.update(q)
     elif key == 'in_output':
-        cellq['cell.outputs.text'] = {'$regex': to_regex(match['in_output'])}
+        cellq['cell.outputs.text'] = to_regex(match['in_output'], not_condition=not_condition)
     else:
         raise KeyError('Unexpected key: {}'.format(key))
     return cellq
 
 def mongo_cell_query_element_from_nq(match):
-    not_cellq = {}
     cellq = {}
     for key in match.keys():
         if key.startswith('not_'):
-            partq = _mongo_cell_query_element_from_nq(key[4:], {key[4:]: match[key]})
-            not_cellq.update(partq)
+            partq = _mongo_cell_query_element_from_nq(key[4:], {key[4:]: match[key]}, not_condition=True)
         else:
             partq = _mongo_cell_query_element_from_nq(key, match)
-            cellq.update(partq)
-    if len(not_cellq) > 0 and len(cellq) == 0:
-        cellq['$not'] = not_cellq
-    elif len(not_cellq) > 0:
-        cellq = {'$and': [cellq, {'$not': not_cellq}]}
+        cellq.update(partq)
     return {
       'cells': {
         '$elemMatch': cellq
