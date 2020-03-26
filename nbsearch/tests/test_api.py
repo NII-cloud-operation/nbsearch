@@ -11,6 +11,7 @@ import os
 from .utils import AsyncMock
 
 collection_name = 'test_notebooks'
+history_name = 'test_history'
 
 
 class ApiHandlerTestCaseBase(tornado.testing.AsyncHTTPTestCase):
@@ -18,11 +19,13 @@ class ApiHandlerTestCaseBase(tornado.testing.AsyncHTTPTestCase):
     def setUp(self):
         self.base_dir = tempfile.mkdtemp()
         self.collection = mock.Mock()
-        self.db = {collection_name: self.collection}
+        self.history = mock.Mock()
+        self.db = {collection_name: self.collection, history_name: self.history}
         self.dbconfig = mock.Mock()
         self.dbconfig.get_database = mock.Mock()
         self.dbconfig.get_database.return_value = self.db
         self.dbconfig.collection = collection_name
+        self.dbconfig.history = history_name
         self.mock_nbsearchdb = mock.patch.object(
             nbsearch.server,
             'NBSearchDB',
