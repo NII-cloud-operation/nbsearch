@@ -14,7 +14,7 @@ def nq_from_meme(meme):
       }
     }
 
-async def mongo_target_query_from_nq(nq_target, history):
+async def mongo_target_query_from_nq(nq_target, history, notebooks):
     cond = {}
     if 'text' in nq_target:
         cond['$text'] = {'$search': nq_target['text']}
@@ -22,6 +22,22 @@ async def mongo_target_query_from_nq(nq_target, history):
         history_obj = await history.find_one({'_id': ObjectId(nq_target['history_in'])})
         notebook_ids = [ObjectId(id) for id in history_obj['notebook_ids']]
         cond['_id'] = {'$in': notebook_ids}
+    if 'history_related' in nq_target:
+        history_obj = await history.find_one({'_id': ObjectId(nq_target['history_related'])})
+        notebook_ids = [ObjectId(id) for id in history_obj['notebook_ids']]
+        cell_ids_result = notebooks.aggregate([
+          {'$match': {'_id': {'$in': notebook_ids}}},
+          {'$unwind': '$cells'},
+          {'$project': {'meme': '$cells.metadata.lc_cell_meme.current'}},
+          {'$match': {'meme': {'$ne': None}}},
+          {'$project': {'meme': {'$substr': ['$meme', 0, 36]}}},
+          {'$group': {'_id': '$meme', 'count': {'$sum': 1}}},
+          {'$match': {'count': {'$gt': 1}}},
+          {'$sort': {'count': -1}}])
+        cell_ids = []
+        async for doc in cell_ids_result:
+            cell_ids.append(doc)
+        cond['cells'] = {'$elemMatch': {'$or': [{'metadata.lc_cell_meme.current': {'$regex': '^{}.*'.format(cid['_id'])}} for cid in cell_ids]}}
     return cond
 
 def to_regex(substr, not_condition=False):
@@ -111,10 +127,10 @@ def mongo_cell_query_from_nq(nq_cell):
         matches.append(mongo_cell_query_element_from_nq(m))
     return {cond: matches}
 
-async def mongo_agg_query_from_nq(nq, history):
+async def mongo_agg_query_from_nq(nq, history, notebooks):
     agg = []
     if 'target' in nq:
-        q = await mongo_target_query_from_nq(nq['target'], history)
+        q = await mongo_target_query_from_nq(nq['target'], history, notebooks)
         if q is not None:
             agg.append({'$match': q})
     if 'notebook' in nq:

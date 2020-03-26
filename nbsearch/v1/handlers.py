@@ -41,7 +41,7 @@ class SearchHandler(BaseHandler):
     async def get(self):
         start, limit = self._get_page()
         nq = self._get_nq()
-        agg_q = await query.mongo_agg_query_from_nq(nq, self.history)
+        agg_q = await query.mongo_agg_query_from_nq(nq, self.history, self.collection)
         sort = self._get_sort()
         if len(agg_q) == 0:
             mongo_q = self.collection.find({})
@@ -122,7 +122,7 @@ class HistoryHandler(BaseHandler):
 
     async def save(self, json_data):
         nq = self._get_nq()
-        agg_q = await query.mongo_agg_query_from_nq(nq, self.history)
+        agg_q = await query.mongo_agg_query_from_nq(nq, self.history, self.collection)
         sort = self._get_sort()
         begin_t = datetime.now()
         if len(agg_q) == 0:
