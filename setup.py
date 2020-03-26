@@ -29,6 +29,11 @@ setup_args = dict(name='nbsearch',
               'mock',
           ],
       },
+      entry_points={
+          'console_scripts': [
+              'jupyter-nbsearch = nbsearch.extensionapp:main'
+          ]
+      },
      )
 
 if __name__ == '__main__':

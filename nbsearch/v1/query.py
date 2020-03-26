@@ -1,3 +1,4 @@
+import re
 from bson.objectid import ObjectId
 import dateutil.parser
 
@@ -37,11 +38,11 @@ async def mongo_target_query_from_nq(nq_target, history, notebooks):
         cell_ids = []
         async for doc in cell_ids_result:
             cell_ids.append(doc)
-        cond['cells'] = {'$elemMatch': {'$or': [{'metadata.lc_cell_meme.current': {'$regex': '^{}.*'.format(cid['_id'])}} for cid in cell_ids]}}
+        cond['cells'] = {'$elemMatch': {'$or': [{'metadata.lc_cell_meme.current': {'$regex': '^{}.*'.format(re.escape(cid['_id']))}} for cid in cell_ids]}}
     return cond
 
 def to_regex(substr, not_condition=False):
-    q = {'$regex': '.*{}.*'.format(substr)}
+    q = {'$regex': '.*{}.*'.format(re.escape(substr))}
     if not not_condition:
         return q
     return {'$not': q}

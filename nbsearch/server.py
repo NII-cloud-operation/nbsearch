@@ -22,7 +22,7 @@ DEFAULT_TEMPLATE_PATH_LIST = [
 
 def get_api_handlers(parent_app, base_dir):
     dbconfig = NBSearchDB(parent=parent_app)
-    db = dbconfig.get_database()
+    db = dbconfig.get_async_database()
 
     handler_settings = {}
     handler_settings['database'] = db

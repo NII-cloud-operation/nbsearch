@@ -22,8 +22,8 @@ class ApiHandlerTestCaseBase(tornado.testing.AsyncHTTPTestCase):
         self.history = mock.Mock()
         self.db = {collection_name: self.collection, history_name: self.history}
         self.dbconfig = mock.Mock()
-        self.dbconfig.get_database = mock.Mock()
-        self.dbconfig.get_database.return_value = self.db
+        self.dbconfig.get_async_database = mock.Mock()
+        self.dbconfig.get_async_database.return_value = self.db
         self.dbconfig.collection = collection_name
         self.dbconfig.history = history_name
         self.mock_nbsearchdb = mock.patch.object(
