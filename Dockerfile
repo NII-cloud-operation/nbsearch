@@ -19,6 +19,10 @@ RUN mkdir -p /usr/local/bin/before-notebook.d && \
     cp /tmp/nbsearch/example/update-index /usr/local/bin/ && \
     chmod +x /usr/local/bin/update-index
 
+RUN mv /opt/conda/bin/jupyterhub-singleuser /opt/conda/bin/_jupyterhub-singleuser && \
+    cp /tmp/nbsearch/example/jupyterhub-singleuser /opt/conda/bin/ && \
+    chmod +x /opt/conda/bin/jupyterhub-singleuser
+
 USER $NB_UID
 
 RUN mkdir -p /home/$NB_USER/.nbsearch && \
