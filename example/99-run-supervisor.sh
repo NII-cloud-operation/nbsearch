@@ -11,3 +11,5 @@ if [[ ! -f /home/$NB_USER/.nbsearch/config_local.py ]] ; then
     done
     jupyter nbsearch update-index /home/$NB_USER/.jupyter/jupyter_notebook_config.py local
 fi
+
+export SUPERVISOR_INITIALIZED=1
