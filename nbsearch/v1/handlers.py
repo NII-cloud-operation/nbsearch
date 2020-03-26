@@ -179,6 +179,8 @@ class ImportHandler(tornado.web.RequestHandler):
         self.base_dir = base_dir
 
     def _has_special(self, path):
+        if path == '/' or path == '':
+            return False
         if '/' not in path:
             return path == '..' or path == '.'
         parent, target = os.path.split(path)
@@ -204,6 +206,8 @@ class ImportHandler(tornado.web.RequestHandler):
         filename = os.path.basename(notebook['path'])
         if path is not None and path.startswith('/'):
             path = path[1:]
+        if path is not None and path.startswith('/'):
+            raise tornado.web.HTTPError(400)
         if path is not None and self._has_special(path):
             raise tornado.web.HTTPError(400)
         path = path if path is not None else '.'

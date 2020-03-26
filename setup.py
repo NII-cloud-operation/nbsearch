@@ -24,6 +24,11 @@ setup_args = dict(name='nbsearch',
           'notebook>=4.2.0',
           'motor',
       ],
+      extras_require={
+          'test': [
+              'mock',
+          ],
+      },
      )
 
 if __name__ == '__main__':
