@@ -69,6 +69,9 @@ define([
             }
             const notebooks = Object.entries(diff_selected).filter(v => v[1] !== null).map(v => v[1]);
             $('.nbsearch-diff-button').prop('disabled', notebooks.length == 0);
+
+            $('.nbsearch-all-check').removeClass(notebooks.length == 0 ? 'fa-check-square' : 'fa-square');
+            $('.nbsearch-all-check').addClass(notebooks.length == 0 ? 'fa-square' : 'fa-check-square');
         };
     }
 
@@ -458,6 +461,18 @@ define([
             return $('<th></th>')
                 .append(colbutton);
         });
+        const all_check = $('<button></button>')
+            .addClass('btn btn-link nbsearch-column-header')
+            .prop('disabled', true)
+            .append($('<i></i>')
+                .addClass('nbsearch-all-check fa fa-square'));
+        all_check.click(() => {
+            const notebooks = Object.entries(diff_selected).filter(v => v[1] !== null).map(v => v[1]);
+            const checkboxes = $('.nbsearch-diff')
+            checkboxes.prop('checked', notebooks.length == 0);
+            checkboxes.trigger('change');
+        });
+        header_elems[0].prepend(all_check);
 
         const list = $('<table></table>')
             .addClass('table')
