@@ -372,8 +372,7 @@ define([
             const q = query.q;
             nq = { target: { text: q } };
         } else if (query && !query.nq && query.meme) {
-            const meme = query.meme;
-            nq = { cell: { and: [{ meme }] } };
+            nq = { cell: { and: [{ 'in_meme': query.meme }] } };
         } else if (query && query.nq) {
             nq = JSON.parse(query.nq);
         }
