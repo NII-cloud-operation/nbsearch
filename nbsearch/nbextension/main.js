@@ -87,6 +87,24 @@ define([
       });
     }
 
+    function download_notebook(path, notebook, loading_indicator) {
+        loading_indicator.show();
+        console.log(log_prefix, 'Destination', path);
+        prepare_notebook(path, notebook)
+            .then(data => {
+                const base_url = utils.get_body_data('baseUrl');
+                const url = `${base_url}${base_url.endsWith('/') ? '' : '/'}notebooks${path}/${encodeURI(data.filename)}`
+                console.log(log_prefix, 'Imported', data, url);
+                window.open(url, '_blank');
+                loading_indicator.hide();
+            })
+            .catch(err => {
+                console.error(log_prefix, err);
+                loading_indicator.hide();
+                $('#nbsearch-error-import').show();
+            });
+    }
+
     function create_link(notebook) {
         const loading_indicator = $('<i></i>')
             .attr('style', 'display: none;')
@@ -96,28 +114,29 @@ define([
             .addClass('nbsearch-diff');
         checkbox.change(get_diff_hanlder(checkbox, notebook));
 
-        const button = $('<button></button>').addClass('btn btn-link');
+        const button = $('<button></button>')
+            .addClass('btn btn-link nbsearch-import')
+            .attr('title', 'Open Notebook');
         button.click(() => {
-            loading_indicator.show();
+            download_notebook('/nbsearch-tmp', notebook, loading_indicator);
+        });
+        const download = $('<button></button>')
+            .addClass('btn btn-link nbsearch-import')
+            .attr('title', 'Download notebook to current folder')
+            .append($('<i></i>').addClass('fa fa-cloud-download'));
+        download.click(() => {
             const current_href = window.location.href.split(/[?#]/)[0];
             let path = current_href.substring(base_href.length);
             if (path.length > 0 && !path.startsWith('/')) {
                 path = `/${path}`;
             }
-            console.log(log_prefix, 'Destination', path);
-            prepare_notebook(path, notebook)
-                .then(data => {
-                    console.log('Imported', data);
-                    loading_indicator.hide();
-                })
-                .catch(err => {
-                    loading_indicator.hide();
-                    $('#nbsearch-error-import').show();
-                });
+            download_notebook(path, notebook, loading_indicator);
         });
         return $('<span></span>')
             .append(checkbox)
-            .append(button.text(notebook['path']).append(loading_indicator));
+            .append(button.text(notebook['path']))
+            .append(download)
+            .append(loading_indicator);
     }
 
     function open_save_dialog() {

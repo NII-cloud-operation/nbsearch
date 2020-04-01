@@ -38,3 +38,7 @@
 .nbsearch-cell-container {
   margin: 1em 1em;
 }
+
+.nbsearch-import {
+  padding: 0.2em;
+}
