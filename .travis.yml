@@ -38,4 +38,4 @@ install:
 
 
 script:
-  - py.test -sv
+  - py.test -sv nbsearch/tests
