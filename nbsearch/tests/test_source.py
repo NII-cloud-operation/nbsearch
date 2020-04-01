@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import json
 import os
 import tempfile
+import time
 
 from nbsearch.source import LocalSource
 
@@ -15,6 +16,7 @@ def test_get_files():
         assert list(source.get_files()) == []
 
         current_time = datetime.utcnow()
+        time.sleep(3)
         with open(os.path.join(tempdirname, 'test.ipynb'), 'w') as f:
             f.write(json.dumps({}))
 
