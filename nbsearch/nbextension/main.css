@@ -1,0 +1,44 @@
+.nbsearch-todo {
+  color: grey;
+}
+
+.nbsearch-search-panel {
+  margin: 1em;
+}
+
+.nbsearch-category-header {
+  font-weight: bold;
+}
+
+.nbsearch-category-body {
+  margin-left: 1em;
+  margin-bottom: 0.4em;
+}
+
+.nbsearch-category-body input {
+  vertical-align: middle;
+  margin-left: 0.2em;
+  margin-right: 0.2em;
+}
+
+.nbsearch-category-body select {
+  vertical-align: middle;
+  margin-left: 0.2em;
+  margin-right: 0.2em;
+}
+
+.nbsearch-target-disabled {
+  color: #ccc;
+}
+
+.nbsearch-notebook-disabled {
+  color: #ccc;
+}
+
+.nbsearch-cell-container {
+  margin: 1em 1em;
+}
+
+.nbsearch-import {
+  padding: 0.2em;
+}

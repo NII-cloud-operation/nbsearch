@@ -1,0 +1,34 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+
+    <meta charset="utf-8">
+
+    <title>{% block title %}NBSearch Server{% end %}</title>
+    {% block favicon %}<link id="favicon" rel="shortcut icon" type="image/x-icon" href="{{ static_url("favicon.ico") }}">{% end %}
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./static/css/bootstrap.min.css">
+    <link rel="stylesheet" href="./static/css/fontawesome-all.min.css">
+    <script src="./static/js/jquery.js"></script>
+    <script src="./static/js/bootstrap.js"></script>
+
+    {% block meta %}
+    {% end %}
+
+</head>
+
+<body>
+
+  <div id="site">
+    {% block site %}
+    {% end %}
+  </div>
+
+  {% block after_site %}
+  {% end %}
+
+</body>
+
+</html>
