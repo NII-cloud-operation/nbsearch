@@ -55,7 +55,7 @@ class UpdateIndexHandler(LoggingConfigurable):
         super(UpdateIndexHandler, self).__init__(**kwargs)
 
     def update(self, cpath, source, path):
-        self.log.info('update_index for {}, {}({})'.format(source, path, cpath))
+        self.log.info('updating indices for {}, {}({})'.format(source, path, cpath))
         self.config.merge(PyFileConfigLoader(cpath).load_config())
         db = NBSearchDB(config=self.config)
         gfs = GridFS(db.get_database())
@@ -63,26 +63,32 @@ class UpdateIndexHandler(LoggingConfigurable):
         source = get_source(source, self.config)
 
         updated = 0
+        failed = []
         for file in source.get_files():
             if path is not None and os.path.split(file['path'])[-1] != os.path.split(path)[-1]:
                 continue
-            self.log.info('FILE {}'.format(file))
-            self.update_notebook(source, file, collection, gfs)
-            updated += 1
-        if updated == 0:
-            return
-        self.log.info('updating indices...')
-        collection.create_index([('cells.outputs.text', 'text'), ('cells.source', 'text')])
-        for field in [
-            'atime', 'mtime', 'path', 'server',
-            'cells.metadata.lc_cell_meme.current',
-            'cells.metadata.lc_cell_meme.previous',
-            'cells.metadata.lc_cell_meme.next',
-        ]:
-            collection.create_index([(field, 1)])
-        self.log.info('finished')
+            try:
+                self.update_notebook(source, file, collection, gfs)
+                updated += 1
+            except:
+                self.log.exception('failed to update index for {}'.format(file['path']))
+                failed.append(file)
+        if updated > 0:
+            self.log.info('creating indices...')
+            collection.create_index([('cells.outputs.text', 'text'), ('cells.source', 'text')])
+            for field in [
+                'atime', 'mtime', 'path', 'server',
+                'cells.metadata.lc_cell_meme.current',
+                'cells.metadata.lc_cell_meme.previous',
+                'cells.metadata.lc_cell_meme.next',
+            ]:
+                collection.create_index([(field, 1)])
+        self.log.info('finished: {} updates, {} fails'.format(updated, len(failed)))
+        if len(failed) > 0:
+            raise RuntimeError('Failed to update: {}'.format(','.join([f['path'] for f in failed])))
 
     def update_notebook(self, source, file, collection, gfs):
+        self.log.info('updating index for notebook... {}'.format(file))
         content = source.get_notebook(file['server'], file['path'])
         notebook = self.normalize_notebook(content)
         server_meme = None
@@ -98,13 +104,13 @@ class UpdateIndexHandler(LoggingConfigurable):
         old_notebooks = list(collection.find(old_q))
         if len(old_notebooks) == 0:
             # New notebook
-            self.log.info('create: notebook={}'.format(file))
+            self.log.debug('create: notebook={}'.format(file))
             newnb = collection.insert_one(notebook)
             notebook_id = newnb.inserted_id
         else:
             # Updated notebook
             notebook_id = old_notebooks[0]['_id']
-            self.log.info('update: _id={}, notebook={}'.format(notebook_id, file))
+            self.log.debug('update: _id={}, notebook={}'.format(notebook_id, file))
             collection.update_one({'_id': notebook_id}, {'$set': notebook})
             gfs.delete(notebook_id)
         gfs.put(json.dumps(content).encode('utf8'), _id=notebook_id)
