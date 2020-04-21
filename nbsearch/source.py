@@ -58,7 +58,9 @@ class LocalSource(Source):
                 ignore_patterns = [l.strip() for l in f.readlines()
                                    if not l.strip().startswith('#')]
             db_base_offset = 0 if len(db_base_dir) == 0 else len(db_base_dir) + 1
-            _check_ignore = lambda path: any([fnmatch(path[db_base_offset:], p) for p in ignore_patterns])
+            _check_ignore = lambda path: any([fnmatch(path[db_base_offset:], p) or
+                                              fnmatch(os.path.split(path)[-1], p)
+                                              for p in ignore_patterns])
         check_ignore = _check_ignore
         if check_ignore_base is not None:
             if _check_ignore is not None:

@@ -140,6 +140,30 @@ test2/**
 
         assert source.get_notebook('http://test/server', 'test2/test2sub.ipynb') == {}
 
+        with open(os.path.join(tempdirname, 'test1', 'ignore.ipynb'), 'w') as f:
+            f.write(json.dumps({}))
+        with open(os.path.join(tempdirname, '.nbsearchignore'), 'w') as f:
+            f.write('''
+# test1/**
+test2/**
+ignore.ipynb
+''')
+
+        files = sorted(source.get_files(), key=lambda x: x['path'])
+        assert len(files) == 2
+        assert files[0]['path'] == 'test.ipynb'
+        assert files[0]['mtime'] >= current_time
+        assert files[0]['atime'] >= current_time
+        assert files[0]['mtime'] < current_time + timedelta(hours=1)
+        assert files[0]['atime'] < current_time + timedelta(hours=1)
+        assert files[1]['path'] == 'test1/test1sub.ipynb'
+        assert files[1]['mtime'] >= current_time
+        assert files[1]['atime'] >= current_time
+        assert files[1]['mtime'] < current_time + timedelta(hours=1)
+        assert files[1]['atime'] < current_time + timedelta(hours=1)
+
+        assert source.get_notebook('http://test/server', 'test2/test2sub.ipynb') == {}
+
 def test_get_files_with_nbsearchignores():
     with tempfile.TemporaryDirectory() as tempdirname:
         source = LocalSource()
