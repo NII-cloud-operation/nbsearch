@@ -1,4 +1,5 @@
 from datetime import datetime
+from fnmatch import fnmatch
 import json
 import os
 
@@ -49,14 +50,30 @@ class LocalSource(Source):
         with open(os.path.join(self.base_dir, path), 'r') as f:
             return json.load(f)
 
-    def _get_files(self, actual_base_dir, db_base_dir):
+    def _get_files(self, actual_base_dir, db_base_dir, check_ignore_base=None):
+        ignore_file = os.path.join(actual_base_dir, '.nbsearchignore')
+        _check_ignore = None
+        if os.path.exists(ignore_file):
+            with open(ignore_file, 'r') as f:
+                ignore_patterns = [l.strip() for l in f.readlines()
+                                   if not l.strip().startswith('#')]
+            db_base_offset = 0 if len(db_base_dir) == 0 else len(db_base_dir) + 1
+            _check_ignore = lambda path: any([fnmatch(path[db_base_offset:], p) for p in ignore_patterns])
+        check_ignore = _check_ignore
+        if check_ignore_base is not None:
+            if _check_ignore is not None:
+                check_ignore = lambda path: check_ignore_base(path) or _check_ignore(path)
+            else:
+                check_ignore = check_ignore_base
         for name in os.listdir(actual_base_dir):
             if name.startswith('.'):
                 continue
             actual_path = os.path.join(actual_base_dir, name)
             db_path = os.path.join(db_base_dir, name)
+            if check_ignore is not None and check_ignore(db_path):
+                continue
             if os.path.isdir(actual_path):
-                for n in self._get_files(actual_path, db_path):
+                for n in self._get_files(actual_path, db_path, check_ignore):
                     yield n
             elif os.path.isfile(actual_path) and name.lower().endswith('.ipynb'):
                 stat = os.stat(actual_path)
