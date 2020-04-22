@@ -73,16 +73,24 @@ class UpdateIndexHandler(LoggingConfigurable):
             except:
                 self.log.exception('failed to update index for {}'.format(file['path']))
                 failed.append(file)
-        if updated > 0:
-            self.log.info('creating indices...')
+        indices = collection.index_information()
+        self.log.info('creating indices...')
+        if not any([('_fts', 'text') in i['key'] for i in indices.values()]):
             collection.create_index([('cells.outputs.text', 'text'), ('cells.source', 'text')])
-            for field in [
-                'atime', 'mtime', 'path', 'server',
-                'cells.metadata.lc_cell_meme.current',
-                'cells.metadata.lc_cell_meme.previous',
-                'cells.metadata.lc_cell_meme.next',
-            ]:
+            self.log.info('index created: {}'.format('text'))
+        else:
+            self.log.info('already exists: {}'.format('text'))
+        for field in [
+            'atime', 'mtime', 'path', 'server',
+            'cells.metadata.lc_cell_meme.current',
+            'cells.metadata.lc_cell_meme.previous',
+            'cells.metadata.lc_cell_meme.next',
+        ]:
+            if not any([(field, 1) in i['key'] for i in indices.values()]):
                 collection.create_index([(field, 1)])
+                self.log.info('index created: {}'.format((field, 1)))
+            else:
+                self.log.info('already exists: {}'.format((field, 1)))
         self.log.info('finished: {} updates, {} fails'.format(updated, len(failed)))
         if len(failed) > 0:
             raise RuntimeError('Failed to update: {}'.format(','.join([f['path'] for f in failed])))
