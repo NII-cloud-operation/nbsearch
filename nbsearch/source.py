@@ -68,15 +68,21 @@ class LocalSource(Source):
             else:
                 check_ignore = check_ignore_base
         for name in os.listdir(actual_base_dir):
-            if name.startswith('.'):
-                continue
             actual_path = os.path.join(actual_base_dir, name)
             db_path = os.path.join(db_base_dir, name)
+            if name.startswith('.'):
+                self.log.debug('ignore hidden file: {}'.format(actual_path))
+                continue
             if check_ignore is not None and check_ignore(db_path):
+                self.log.debug('ignore file: {}'.format(actual_path))
                 continue
             if os.path.isdir(actual_path):
                 for n in self._get_files(actual_path, db_path, check_ignore):
                     yield n
-            elif os.path.isfile(actual_path) and name.lower().endswith('.ipynb'):
-                stat = os.stat(actual_path)
-                yield {'server': self.server, 'path': db_path, 'mtime': datetime.utcfromtimestamp(stat.st_mtime), 'atime': datetime.utcfromtimestamp(stat.st_atime)}
+            elif os.path.isfile(actual_path):
+                if name.lower().endswith('.ipynb'):
+                    stat = os.stat(actual_path)
+                    yield {'server': self.server, 'path': db_path, 'mtime': datetime.utcfromtimestamp(stat.st_mtime), 'atime': datetime.utcfromtimestamp(stat.st_atime)}
+                else:
+                    self.log.debug('ignore file that are not ipynb: {}'.format(actual_path))
+                    continue
