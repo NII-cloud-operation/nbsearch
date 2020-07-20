@@ -32,7 +32,9 @@ then restart Jupyter notebook.
 
 ## Settings
 
-In order to use nbsearch, you must describe the following configuration in your jupyter_notebook_config.
+In order to use nbsearch, [MongoDB](https://www.mongodb.com/) is required.
+You must prepare a MongoDB that can be connected from your Jupyter Notebook,
+and describe the following configuration in your jupyter_notebook_config.
 
 ```
 c.NBSearchDB.hostname = 'localhost'
