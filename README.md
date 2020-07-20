@@ -61,12 +61,20 @@ c.LocalSource.server = 'http://localhost:8888/'
 
 ### Add indexes of notebooks to MongoDB
 
-*TBD*
+To make all your current notebooks searchable, run the following command. When you run this command, a collection for retrieval is prepared on the MongoDB.
+
+```
+$ jupyter nbsearch update-index $CONDA_DIR/etc/jupyter/jupyter_notebook_config.py --debug local
+```
 
 ### Search for Notebooks
 
-*TBD*
+To search the Notebook, you can use the NBSearch tab. *TBD*
+
+![NBSearch tab](./images/tab.png)
 
 ### Search using chrome extension
+
+To search using the browser's context menu, use [nbsearch-helper](https://github.com/NII-cloud-operation/nbsearch-helper).
 
 *TBD*
