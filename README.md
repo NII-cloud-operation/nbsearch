@@ -32,7 +32,28 @@ then restart Jupyter notebook.
 
 ## Settings
 
-*TBD*
+In order to use nbsearch, you must describe the following configuration in your jupyter_notebook_config.
+
+```
+c.NBSearchDB.hostname = 'localhost'
+c.NBSearchDB.port = 'localhost'
+c.NBSearchDB.database = 'test_db'
+c.NBSearchDB.collection = 'test_notebooks'
+c.NBSearchDB.history = 'test_history'
+c.NBSearchDB.username = ''
+c.NBSearchDB.password = ''
+
+c.LocalSource.base_dir = '/home/jovyan'
+c.LocalSource.server = 'http://localhost:8888/'
+```
+
+* `c.NBSearchDB.hostname`, `c.NBSearchDB.port` - Hostname and port of the MongoDB(default: localhost:27017)
+* `c.NBSearchDB.username`, `c.NBSearchDB.password` - Username and password of the MongoDB(if needed)
+* `c.NBSearchDB.database` - Database name in the MongoDB(default: nbsearch)
+* `c.NBSearchDB.collection` - Collection name which notebooks are stored in the Database(default: notebooks)
+* `c.NBSearchDB.history` - Collection name which search history are stored in the Database(default: history)
+* `c.LocalSource.base_dir` - Notebook directory to be searchable
+* `c.LocalSource.server` - URL of my server, used to identify the notebooks on this server(default: http://localhost:8888/)
 
 ## Usage
 
@@ -41,5 +62,9 @@ then restart Jupyter notebook.
 *TBD*
 
 ### Search for Notebooks
+
+*TBD*
+
+### Search using chrome extension
 
 *TBD*
