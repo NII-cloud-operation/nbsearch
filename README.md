@@ -1,6 +1,6 @@
 # nbsearch [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/NII-cloud-operation/nbsearch/master)
 
-nbsearch extension provides search capabilities for Jupyter Notebooks which you created. It supports search by MEME in addition to search by keywords and modified times like a search engine. Therefore, users can easily find cells of the same origin in sticky notes added by sidestickies.
+nbsearch extension provides search capabilities for Jupyter Notebooks, which you created. It supports search by MEME in addition to search by keywords and modified times like a search engine. Therefore, users can easily find cells of the same origin in sticky notes added by sidestickies.
 
 ## Prerequisite
 
@@ -12,7 +12,7 @@ Jupyter Notebook 6.x
 $ pip install git+https://github.com/NII-cloud-operation/nbsearch
 ```
 
-To use nbearch extension you will also need to install and enable, you can use Jupyter subcommand:
+To use nbsearch extension, you will also need to install and enable. You can use Jupyter subcommand:
 
 ```
 $ jupyter nbextension install --py nbsearch
@@ -20,7 +20,7 @@ $ jupyter serverextension enable --py nbsearch
 $ jupyter nbextension enable --py nbsearch
 ```
 
-To compare multiple Notebooks, you need to install [Jupyter-LC_notebook_diff](https://github.com/NII-cloud-operation/Jupyter-LC_notebook_diff) as shown below.
+To compare multiple Notebooks, you need to install [Jupyter-LC_notebook_diff](https://github.com/NII-cloud-operation/Jupyter-LC_notebook_diff), as shown below.
 
 ```
 $ pip install git+https://github.com/NII-cloud-operation/Jupyter-LC_notebook_diff
@@ -32,7 +32,7 @@ then restart Jupyter notebook.
 
 ## Settings
 
-In order to use nbsearch, [MongoDB](https://www.mongodb.com/) is required.
+To use nbsearch, [MongoDB](https://www.mongodb.com/) is required.
 You must prepare a MongoDB that can be connected from your Jupyter Notebook,
 and describe the following configuration in your jupyter_notebook_config.
 
