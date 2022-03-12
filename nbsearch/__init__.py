@@ -12,10 +12,6 @@ DEFAULT_TEMPLATE_PATH_LIST = server.DEFAULT_TEMPLATE_PATH_LIST
 
 def load_jupyter_server_extension(nb_server_app):
     nb_server_app.log.info('nbsearch extension started')
-    if os.path.isdir(nb_server_app.notebook_dir):
-        tmpdir = os.path.join(nb_server_app.notebook_dir, 'nbsearch-tmp')
-        if not os.path.isdir(tmpdir):
-            os.mkdir(tmpdir)
     server.register_routes(nb_server_app, nb_server_app.web_app)
 
 

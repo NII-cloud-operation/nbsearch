@@ -42,3 +42,23 @@
 .nbsearch-import {
   padding: 0.2em;
 }
+
+.nbsearch-query-tabs {
+  display: flex;
+}
+
+.nbsearch-query-tabs > div {
+  padding: 0.5em;
+  margin-bottom: 0.5em;
+  cursor: default;
+}
+
+.nbsearch-query-tab-active {
+  border-top: 1px solid #ccc;
+  border-left: 1px solid #ccc;
+  border-right: 1px solid #ccc;
+}
+
+.nbsearch-query-tab-inactive {
+  border-bottom: 1px solid #ccc;
+}

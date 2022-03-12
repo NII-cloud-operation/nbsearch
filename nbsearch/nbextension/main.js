@@ -33,11 +33,16 @@ define([
     async function run_search(query) {
         let q = query ? Object.assign({}, query) : {};
         q[tab_id] = 'yes';
+        delete q['notebooks'];
+        delete q['error'];
         window.history.pushState(null, null, `?${$.param(q)}`);
 
         const newq = await search.execute(query);
 
         q = newq ? Object.assign({}, newq) : {};
+        delete q['notebooks'];
+        delete q['error'];
+
         q[tab_id] = 'yes';
         window.history.pushState(null, null, `?${$.param(q)}`);
 
@@ -134,50 +139,9 @@ define([
         });
         return $('<span></span>')
             .append(checkbox)
-            .append(button.text(notebook['path']))
+            .append(button.text(notebook['filename']))
             .append(download)
             .append(loading_indicator);
-    }
-
-    function open_save_dialog() {
-        console.log('show usage', self.db);
-
-        let dlg = null;
-        const text = $('<input></input>')
-            .attr('type', 'text')
-            .attr('size', '40');
-        const body = $('<div></div>')
-            .append($('<span></span>')
-                 .append($('<span></span>').text('履歴名:'))
-                 .append(text));
-        const buttons = {
-            'Close': {
-                class: 'btn-default',
-                click: () => {
-                    dlg.modal('hide');
-                }
-            },
-            'Save': {
-                class: 'btn-primary',
-                click: () => {
-                    search.save(last_query, text.val(), true)
-                        .then(result => {
-                            console.log(log_prefix, 'SUCCESS', result);
-                            dlg.modal('hide');
-                        })
-                        .catch(e => {
-                            console.error(log_prefix, 'ERROR', e);
-                            dlg.modal('hide');
-                        });
-                }
-            }
-        };
-
-        dlg = Jupyter.dialog.modal({
-            title: '検索結果の保存',
-            body: body,
-            buttons: buttons,
-        });
     }
 
     function create_page_button() {
@@ -253,188 +217,26 @@ define([
                 });
         });
 
-        const save_button = $('<button></button>')
-            .addClass('btn btn-default btn-xs nbsearch-save-button')
-            .prop('disabled', true)
-            .append($('<i></i>').addClass('fa fa-save'))
-            .append('Save');
-        save_button.click(() => {
-            open_save_dialog();
-        });
-
         const page_number = $('<span></span>')
             .addClass('nbsearch-page-number');
         return $('<div></div>')
             .append(prev_button)
             .append(page_number)
             .append(next_button)
-            .append(save_button)
             .append(diff_button);
     }
 
-    function refresh_histories(data) {
-        const tbody = $('#nbsearch-histories');
-        tbody.empty();
-        data.histories.forEach(history => {
-            let name = history['name'];
-            if (name.length > 40) {
-                name = name.substring(0, 38) + '...';
-            }
-            const fill_search_button = $('<button></button>')
-                .addClass('btn btn-xs')
-                .append($('<i></i>').addClass('fa fa-search'));
-            const plus_search_button = $('<button></button>')
-                .addClass('btn btn-xs')
-                .append($('<i></i>').addClass('fa fa-search-plus'));
-            fill_search_button.click(() => {
-                if (!history.nq) {
-                    console.error(log_prefix, 'No queries for: ', history.id);
-                    return;
-                }
-                const query = { nq: JSON.stringify(history.nq) };
-                create_query_ui(query)
-                    .then(ui => {
-                        $('#nbsearch-query-panel').empty();
-                        $('#nbsearch-query-panel').append(ui);
-                        const baseq = search.get_cell_query();
-                        run_search(baseq)
-                            .then(newq => {
-                                $('.nbsearch-save-button').prop('disabled', false);
-                                $('.nbsearch-column-header').prop('disabled', false);
-                                console.log(log_prefix, 'SUCCESS', newq);
-                                last_query = newq;
-                                diff_selected = {};
-                            })
-                            .catch(e => {
-                                console.error(log_prefix, 'ERROR', e);
-                            });
-                    })
-                    .catch(err => {
-                        console.error(log_prefix, 'Failed to create search UI', err);
-                    });
-            });
-            plus_search_button.click(() => {
-                $('#nbsearch-target-type').val(history.id);
-            });
-            const remove_button = $('<button></button>')
-                .addClass('btn btn-xs')
-                .append($('<i></i>').addClass('fa fa-trash'));
-            remove_button.click(() => {
-                search.remove(history.id, true)
-                    .then(result => {
-                        search.get_histories()
-                            .then(data => {
-                                refresh_histories(data);
-                            })
-                            .catch(err => {
-                                console.error(log_prefix, 'Failed to load history', err);
-                            });
-                    })
-                    .catch(err => {
-                        console.error(log_prefix, 'Failed to remove history', err);
-                    });
-            });
-            const tr = $('<tr></tr>')
-                .append($('<td></td>')
-                    .text(`${name} (${history['id']})`)
-                    .append(fill_search_button)
-                    .append(plus_search_button)) //.append(createLink(notebook)))
-                .append($('<td></td>').text(history['created'] ? new Date(history['created'] * 1000).toISOString() : ''))
-                .append($('<td></td>').text(history['elapsed'] ? `${parseInt(history['elapsed'])}sec` : ''))
-                .append($('<td></td>').text(history['notebooks']))
-                .append($('<td></td>').append(remove_button));
-            tbody.append(tr);
-        });
-    }
-
-    function create_history_ui() {
-        const headers = [['Name', 'name'], ['Created', 'created'],
-                         ['Elapsed', 'elapsed'], ['# of Notebooks', null],
-                         ['', null]];
-        const header_elems = headers.map(cols => {
-            const colname = cols[0];
-            const colid = cols[1];
-            const label = $('<span></span>')
-                .addClass('nbsearch-history-column-order')
-                .text(colname);
-            return $('<th></th>')
-                .append(label);
-        });
-        const tbody = $('<tbody></tbody>')
-            .attr('id', 'nbsearch-histories')
-            .append($('<tr></tr>')
-                .append($('<td></td>')
-                    .attr('colspan', headers.length)
-                    .append('No history')));
-        const histories = $('<table></table>')
-            .addClass('table')
-            .append($('<thead></thead>')
-                .append(header_elems))
-            .append(tbody);
-        const title = $('<a></a>')
-            .attr('data-toggle', 'collapse')
-            .attr('data-target', '#nbsearch-history')
-            .attr('href', '#')
-            .attr('aria-expanded', 'false')
-            .text('検索履歴');
-        const heading = $('<div></div>')
-            .addClass('panel-heading')
-            .append(title);
-        const body = $('<div></div>')
-            .addClass('panel-body')
-            .append(histories);
-        const container = $('<div></div>')
-            .addClass('collapse')
-            .attr('id', 'nbsearch-history')
-            .attr('aria-expanded', 'false')
-            .append(body);
-        title.each(function(index, el) {
-            var $link = $(el);
-            var $icon = $('<i />')
-                .addClass('fa fa-caret-down');
-            $link.append($icon);
-            $link.down = true;
-            $link.click(function () {
-                if ($link.down) {
-                    $link.down = false;
-                    $icon.animate({ borderSpacing: 90 }, {
-                        step: function(now,fx) {
-                            isRTL ? $icon.css('transform','rotate(' + now + 'deg)') : $icon.css('transform','rotate(-' + now + 'deg)');
-                        }
-                    }, 250);
-                } else {
-                    $link.down = true;
-                    // See comment above.
-                    $icon.animate({ borderSpacing: 0 }, {
-                        step: function(now,fx) {
-                            isRTL ? $icon.css('transform','rotate(' + now + 'deg)') : $icon.css('transform','rotate(-' + now + 'deg)');
-                        }
-                    }, 250);
-                }
-            });
-        });
-
-        search.get_histories()
-            .then(data => {
-                refresh_histories(data);
-            })
-            .catch(err => {
-                console.error(log_prefix, 'Failed to load history', err);
-            });
-
-        return $('<div></div>')
-            .addClass('panel panel-default')
-            .append(heading)
-            .append(container);
-    }
-
-    async function create_query_ui(query) {
+    function create_query_ui(query) {
         const url = new URL(window.location);
         last_query = Object.assign({}, query);
 
-        const headers = [['Path', 'path'], ['Server', 'server'],
-                         ['MTime', 'mtime'], ['ATime', 'atime'],
-                         ['# of Cells', null]];
+        const headers = [['Path', 'filename'],
+                         ['Server', 'signature_server_url'],
+                         ['Owner', 'owner'],
+                         ['Modified', 'mtime'],
+                         ['Executed', 'lc_cell_meme__execution_end_time'],
+                         ['Operation Note', 'source__markdown__operation_note'],
+                         ['# of Headers', 'source__markdown__heading_count']];
         const header_elems = headers.map(cols => {
             const colname = cols[0];
             const colid = cols[1];
@@ -446,23 +248,20 @@ define([
                 .text(colname)
                 .append(label);
             const sort = url.searchParams.get('sort');
-            if (sort == `${colid}-asc`) {
+            if (sort == `${colid} asc`) {
                 label.append($('<i></i>').addClass('fa fa-angle-up'));
-            } else if (sort == `${colid}-desc`) {
+            } else if (sort == `${colid} desc`) {
                 label.append($('<i></i>').addClass('fa fa-angle-down'));
             }
             colbutton.click(() => {
                 if (!last_query) {
                     return;
                 }
-                $('.nbsearch-column-order').empty();
                 let sort = last_query.sort;
-                if (sort == `${colid}-asc`) {
-                    sort = `${colid}-desc`;
-                    label.append($('<i></i>').addClass('fa fa-angle-down'));
+                if (sort == `${colid} desc`) {
+                    sort = `${colid} asc`;
                 } else {
-                    sort = `${colid}-asc`;
-                    label.append($('<i></i>').addClass('fa fa-angle-up'));
+                    sort = `${colid} desc`;
                 }
                 const baseq = search.get_cell_query(
                     undefined, undefined, sort
@@ -471,6 +270,13 @@ define([
                     .then(newq => {
                         console.log(log_prefix, 'SUCCESS', newq);
                         last_query = newq;
+                        $('.nbsearch-column-order').empty();
+                        const sort_button = $('<i></i>');
+                        if (last_query.sort == `${colid} desc`) {
+                            label.append(sort_button.addClass('fa fa-angle-down'));
+                        } else {
+                            label.append(sort_button.addClass('fa fa-angle-up'));
+                        }
                         diff_selected = {};
                     })
                     .catch(e => {
@@ -532,7 +338,7 @@ define([
             .addClass('row list_toolbar')
             .append($('<div></div>')
                 .addClass('col-sm-12 no-padding nbsearch-search-panel')
-                .append(await search.create_cell_query_ui(last_query))
+                .append(search.create_cell_query_ui(last_query))
                 .append(search_button)
                 .append(loading_indicator));
         const error = $('<div></div>')
@@ -571,10 +377,9 @@ define([
         const url = new URL(window.location);
 
         const query = search.query_from_search_params(url.searchParams);
-        tab_body.append(create_history_ui());
         tab_body.append($('<div></div>')
             .attr('id', 'nbsearch-query-panel')
-            .append(await create_query_ui(query)));
+            .append(create_query_ui(query)));
         if (url.searchParams.get(tab_id) == 'yes') {
             tab_link.click();
         }
