@@ -4,12 +4,12 @@ define([
     $,
 ) {
     const log_prefix = '[nbsearch]';
-    const config = { urlPrefix: '', elemPrefix: '' };
+    const config = { url_prefix: '' };
 
-    function init(urlPrefix, elemPrefix, createLink) {
-        config.urlPrefix = urlPrefix;
-        config.elemPrefix = elemPrefix;
-        config.createLink = createLink;
+    function init(url_prefix, target, renderers) {
+        config.url_prefix = url_prefix;
+        config.target = target;
+        config.renderers = renderers;
     }
 
     function query_from_search_params(search_params) {
@@ -103,7 +103,7 @@ define([
         return container.append(fields).append(remove_button);
     }
 
-    function _create_cell_query_ui(cell, change_callback) {
+    function _create_notebook_query_ui(cell, change_callback) {
         const cell_cond = $('<select></select>')
             .attr('id', 'nbsearch-cell-cond')
             .append($('<option></option>').attr('value', 'AND').text('すべて成立'))
@@ -145,21 +145,8 @@ define([
             .append(cell_conds_add);
     }
 
-    function create_cell_query_ui(query) {
+    function _create_base_query_ui(query_editor, query) {
         const solr_query = _create_target_query_ui(query || {});
-        const query_preview = $('<span></span>')
-          .attr('id', 'nbsearch-query-preview');
-        const query_editor = _create_cell_query_ui(query || {}, () => {
-          query = _get_cell_query();
-          query_preview.text(query);
-        });
-        query_editor
-          .append($('<div></div>')
-            .attr('id', 'nbsearch-query-preview-container')
-            .addClass('nbsearch-category-body')
-            .append($('<span></span>').text('Solrクエリ:'))
-            .append(query_preview)
-            .hide());
 
         const tabs = $('<div></div>').addClass('nbsearch-query-tabs');
         const solr_query_button = $('<a></a>').text('Solrクエリ');
@@ -203,7 +190,74 @@ define([
             .append(container);
     }
 
-    function _get_cell_query() {
+    function create_notebook_query_ui(query) {
+        const query_preview = $('<span></span>')
+            .attr('id', 'nbsearch-query-preview');
+        const query_editor = _create_notebook_query_ui(query || {}, () => {
+            query = _get_cell_query();
+            query_preview.text(query);
+        });
+        query_editor
+            .append($('<div></div>')
+                .attr('id', 'nbsearch-query-preview-container')
+                .addClass('nbsearch-category-body')
+                .append($('<span></span>').text('Solrクエリ:'))
+                .append(query_preview)
+                .hide());
+        return _create_base_query_ui(query_editor, query)
+    }
+
+    function _get_cell_queries(search_context) {
+        const queries = [];
+        if (search_context.lc_cell_meme__current) {
+            queries.push({
+                name: 'Search by MEME',
+                query: `cell_type:${search_context.cell_type} AND lc_cell_meme__current:${search_context.lc_cell_meme__current}`,
+            });
+        }
+        if (search_context.lc_cell_meme__previous) {
+            queries.push({
+                name: 'Search by previous MEME',
+                query: `cell_type:${search_context.cell_type} AND lc_cell_meme__previous:${search_context.lc_cell_meme__previous}`,
+            });
+        }
+        if (search_context.source) {
+            const source = search_context.source.replaceAll('\n', ' ');
+            queries.push({
+                name: 'Search by content',
+                query: `cell_type:${search_context.cell_type} AND source__${search_context.cell_type}:${source}`,
+            });
+        }
+        queries.push({
+            name: `All ${search_context.cell_type} cells`,
+            query: `cell_type:${search_context.cell_type}`,
+        });
+        return queries;
+    }
+
+    function create_cell_query_ui(search_context, query) {
+        const query_preview = $('<span></span>')
+            .attr('id', 'nbsearch-query-preview');
+        const query_editor = $('<select></select>').attr('id', 'nbsearch-cell-query');
+        _get_cell_queries(search_context).forEach(function(option) {
+            query_editor.append($('<option></option>').attr('value', option.query).text(option.name));
+        });
+        query_editor.change(function() {
+            query = _get_cell_query();
+            query_preview.text(query);
+        });
+        query_editor_container = $('<div></div>')
+            .append(query_editor)
+            .append($('<div></div>')
+                .attr('id', 'nbsearch-query-preview-container')
+                .addClass('nbsearch-category-body')
+                .append($('<span></span>').text('Solrクエリ:'))
+                .append(query_preview)
+                .hide());
+        return _create_base_query_ui(query_editor_container, query)
+    }
+
+    function _get_notebook_query() {
         const cond = $('#nbsearch-cell-cond').val();
         const cond_elems = [];
         $('.nbsearch-cell-field').toArray().forEach(field => {
@@ -214,10 +268,14 @@ define([
         return cond_elems.join(` ${cond} `);
     }
 
-    function get_cell_query(start, limit, sort) {
+    function _get_cell_query() {
+        return $('#nbsearch-cell-query').val();
+    }
+
+    function get_notebook_query(start, limit, sort) {
         let query = $('#nbsearch-target-text').val();
         if ($('#nbsearch-cell-cond').is(':visible')) {
-            query = _get_cell_query();
+            query = _get_notebook_query();
             $('#nbsearch-query-preview').text(query);
             $('#nbsearch-query-preview-container').show();
             $('#nbsearch-target-text').val(query);
@@ -237,69 +295,50 @@ define([
         return r;
     }
 
-    function _createLink(notebook) {
-        return $('<a></a>')
-            .attr('href', `${config.urlPrefix}/v1/download/${notebook.id}`).text(notebook['filename']);
-    }
-
-    function _shorten(desc) {
-        const LENGTH = 16;
-        if (desc.length < LENGTH) {
-            return desc;
+    function get_cell_query(start, limit, sort) {
+        let query = $('#nbsearch-target-text').val();
+        if ($('#nbsearch-cell-query').is(':visible')) {
+            query = _get_cell_query();
+            $('#nbsearch-query-preview').text(query);
+            $('#nbsearch-query-preview-container').show();
+            $('#nbsearch-target-text').val(query);
         }
-        return desc.substring(0, LENGTH) + '...';
+        r = {
+            query,
+            q_op: 'OR',
+        };
+        if (start !== undefined) {
+            r.start = start.toString();
+        }
+        if (limit !== undefined) {
+            r.limit = limit.toString();
+        }
+        if (sort !== undefined) {
+            r.sort = sort;
+        }
+        return r;
     }
 
     function execute(query_) {
         const query = Object.assign({}, query_);
         console.log(log_prefix, 'QUERY', query);
         return new Promise((resolve, reject) => {
-            $(`#${config.elemPrefix}loading`).show();
-            $(`#${config.elemPrefix}error-connect`).hide();
-            var jqxhr = $.getJSON(`${config.urlPrefix}/v1/notebook/search?${$.param(query)}`)
+            if (config.renderers && config.renderers.render_loading) {
+                config.renderers.render_loading();
+            }
+            var jqxhr = $.getJSON(`${config.url_prefix}/v1/${config.target}/search?${$.param(query)}`)
                 .done(data => {
                     console.log(log_prefix, 'query', data.solrquery);
-                    $(`#${config.elemPrefix}loading`).hide();
-                    const tbody = $(`#${config.elemPrefix}result`);
-                    tbody.empty();
-
-                    const createLink = config.createLink || _createLink;
-                    (data.notebooks || []).forEach(notebook => {
-                        const heading = $('<span></span>')
-                            .text(notebook['source__markdown__heading_count'] || '')
-                            .attr('title', notebook['source__markdown__heading'] || '');
-                        const operation_note = $('<span></span>')
-                            .text(_shorten(notebook['source__markdown__operation_note'] || ''))
-                            .attr('title', notebook['source__markdown__operation_note'] || '');
-                        const tr = $('<tr></tr>')
-                            .append($('<td></td>').append(createLink(notebook)))
-                            .append($('<td></td>').text(notebook['server'] || notebook['signature_server_url']))
-                            .append($('<td></td>').text(notebook['owner']))
-                            .append($('<td></td>').text(notebook['mtime']))
-                            .append($('<td></td>').text(notebook['lc_cell_meme__execution_end_time']))
-                            .append($('<td></td>').append(operation_note))
-                            .append($('<td></td>').append(heading));
-                        tbody.append(tr);
-                    });
-                    if (!data.error && (data.notebooks || []).length === 0) {
-                        const tr = $('<tr></tr>')
-                            .append($('<td></td>').attr('colspan', '7').text('No results'));
-                        tbody.append(tr);
+                    if (config.renderers && config.renderers.render_results) {
+                        config.renderers.render_results(data);
                     }
-                    if (data.error) {
-                        const tr = $('<tr></tr>')
-                            .append($('<td></td>')
-                            .attr('colspan', '7')
-                            .css('color', '#f00')
-                            .text(`${data.error.msg} (code=${data.error.code})`));
-                        tbody.append(tr);
-                    }
-                    $(`.${config.elemPrefix}page-number`).text(`${data.start}-${data.start + data.limit}`);
                     resolve(data);
                 })
                 .fail(err => {
-                    $(`#${config.elemPrefix}loading`).hide();
-                    $(`#${config.elemPrefix}error-connect`).show();
+                    console.error(log_prefix, 'error', err);
+                    if (config.renderers && config.renderers.render_error) {
+                        config.renderers.render_error(err);
+                    }
                     reject(err);
                 });
         });
@@ -308,7 +347,9 @@ define([
     return {
         init,
         execute,
+        create_notebook_query_ui,
         create_cell_query_ui,
+        get_notebook_query,
         get_cell_query,
         query_from_search_params,
     };

@@ -62,3 +62,26 @@
 .nbsearch-query-tab-inactive {
   border-bottom: 1px solid #ccc;
 }
+
+.nbsearch-notebook-result-self {
+  position: absolute;
+  right: 0;
+  background-color: rgba(255, 255, 255, 0.9);
+  z-index: 100;
+}
+
+.nbsearch-notebook-result-append {
+  position: absolute;
+  right: 0;
+  top: 0;
+  background-color: rgba(255, 255, 255, 0.9);
+  z-index: 100;
+}
+
+.fa-append-search:before {
+  content: "\f002";
+}
+
+.fa-append-search:after {
+  content: "+";
+}

@@ -61,6 +61,7 @@
   <field name="lc_cell_meme__next" type="text_meme" multiValued="false" indexed="true" required="false" stored="true"/>
   <field name="lc_cell_meme__previous" type="text_meme" multiValued="false" indexed="true" required="false" stored="true"/>
   <field name="lc_cell_meme__execution_end_time" type="date" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="estimated_mtime" type="date" multiValued="false" indexed="true" required="true" stored="true"/>
   <field name="source__code" type="text_script" multiValued="false" indexed="true" required="false" stored="true"/>
   <field name="source__markdown" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
   <field name="source__markdown__heading_1" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>

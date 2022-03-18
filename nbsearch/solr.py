@@ -162,6 +162,8 @@ def cell_to_solr_document(notebook_id, path, cell, cell_index, notebook_attr=Non
         doc['source'] = markdown
         doc.update(markdown_to_solr_fields(markdown, prefix='source__markdown__'))
     doc['_text_'] = doc['source'] if 'source' in doc else ''
+    if 'notebook_mtime' in doc or 'lc_cell_meme__execution_end_time' in doc:
+        doc['estimated_mtime'] = doc['lc_cell_meme__execution_end_time'] if 'lc_cell_meme__execution_end_time' in doc else doc['notebook_mtime']
     if 'outputs' not in cell:
         return doc
     for output in cell['outputs']:

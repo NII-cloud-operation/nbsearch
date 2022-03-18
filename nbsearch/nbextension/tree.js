@@ -3,14 +3,12 @@ define([
     'base/js/namespace',
     'base/js/utils',
     'require',
-    'bidi/bidi',
     './search',
 ], function(
     $,
     Jupyter,
     utils,
     require,
-    bidi,
     search,
 ) {
     "use strict";
@@ -18,8 +16,6 @@ define([
     const mod_name = 'nbsearch';
     const log_prefix = '[' + mod_name + ']';
     const tab_id = 'nbsearch';
-
-    const isRTL = bidi.isMirroringEnabled();
 
     let last_query = {};
     let base_href = null;
@@ -144,6 +140,57 @@ define([
             .append(loading_indicator);
     }
 
+    function render_notebook_results(data) {
+        $('#nbsearch-loading').hide();
+        const tbody = $('#nbsearch-result');
+        tbody.empty();
+
+        (data.notebooks || []).forEach(notebook => {
+            const heading = $('<span></span>')
+                .text(notebook['source__markdown__heading_count'] || '')
+                .attr('title', notebook['source__markdown__heading'] || '');
+            const operation_note = $('<span></span>')
+                .text(_shorten(notebook['source__markdown__operation_note'] || ''))
+                .attr('title', notebook['source__markdown__operation_note'] || '');
+            const tr = $('<tr></tr>')
+                .append($('<td></td>').append(create_link(notebook)))
+                .append($('<td></td>').text(notebook['server'] || notebook['signature_server_url']))
+                .append($('<td></td>').text(notebook['owner']))
+                .append($('<td></td>').text(notebook['mtime']))
+                .append($('<td></td>').text(notebook['lc_cell_meme__execution_end_time']))
+                .append($('<td></td>').append(operation_note))
+                .append($('<td></td>').append(heading));
+            tbody.append(tr);
+        });
+        if (!data.error && (data.notebooks || []).length === 0) {
+            const tr = $('<tr></tr>')
+                .append($('<td></td>').attr('colspan', '7').text('No results'));
+            tbody.append(tr);
+        }
+        if (data.error) {
+            const tr = $('<tr></tr>')
+                .append($('<td></td>')
+                .attr('colspan', '7')
+                .css('color', '#f00')
+                .text(`${data.error.msg} (code=${data.error.code})`));
+            tbody.append(tr);
+        }
+        $('.nbsearch-page-number').text(`${data.start}-${data.start + data.limit}`);
+    }
+
+    function render_error(err) {
+        $('#nbsearch-loading').hide();
+        $('#nbsearch-error-connect').show();
+    }
+
+    function _shorten(desc) {
+        const LENGTH = 16;
+        if (desc.length < LENGTH) {
+            return desc;
+        }
+        return desc.substring(0, LENGTH) + '...';
+    }
+
     function create_page_button() {
         const prev_button = $('<button></button>')
             .addClass('btn btn-link btn-xs')
@@ -154,7 +201,7 @@ define([
             if (parseInt(query.start) <= 0) {
               return;
             }
-            const baseq = search.get_cell_query(
+            const baseq = search.get_notebook_query(
                 Math.min(parseInt(last_query.start) - parseInt(last_query.limit), 0).toString(),
                 last_query.limit,
                 last_query.sort
@@ -174,7 +221,7 @@ define([
             .append($('<i></i>').addClass('fa fa-angle-right'));
         next_button.click(() => {
             console.log(log_prefix, 'Next', last_query);
-            const baseq = search.get_cell_query(
+            const baseq = search.get_notebook_query(
                 (parseInt(last_query.start) + parseInt(last_query.limit)).toString(),
                 last_query.limit,
                 last_query.sort
@@ -263,7 +310,7 @@ define([
                 } else {
                     sort = `${colid} desc`;
                 }
-                const baseq = search.get_cell_query(
+                const baseq = search.get_notebook_query(
                     undefined, undefined, sort
                 );
                 run_search(baseq)
@@ -318,7 +365,7 @@ define([
             .append($('<i></i>').addClass('fa fa-search'))
             .append('検索');
         search_button.click(() => {
-            const baseq = search.get_cell_query(
+            const baseq = search.get_notebook_query(
                 last_query.start, last_query.limit, last_query.sort
             );
             run_search(baseq)
@@ -338,7 +385,7 @@ define([
             .addClass('row list_toolbar')
             .append($('<div></div>')
                 .addClass('col-sm-12 no-padding nbsearch-search-panel')
-                .append(search.create_cell_query_ui(last_query))
+                .append(search.create_notebook_query_ui(last_query))
                 .append(search_button)
                 .append(loading_indicator));
         const error = $('<div></div>')
@@ -385,9 +432,16 @@ define([
         }
     }
 
-    function load_ipython_extension() {
+    function load_extension() {
         base_href = get_base_path();
-        search.init(get_api_base_url(), 'nbsearch-', create_link);
+        search.init(get_api_base_url(), 'notebook', {
+            render_results: render_notebook_results,
+            render_error: render_error,
+            render_loading: function() {
+                $('#nbsearch-loading').show();
+                $('#nbsearch-error-connect').hide();
+            },
+        });
 
         $('<link>')
             .attr('rel', 'stylesheet')
@@ -402,6 +456,7 @@ define([
     }
 
     return {
-        load_ipython_extension : load_ipython_extension
+        load_ipython_extension : load_extension,
+        load_jupyter_extension : load_extension
     };
 });

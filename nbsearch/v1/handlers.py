@@ -26,7 +26,7 @@ class SearchHandler(tornado.web.RequestHandler):
             sort=sort
         )
         resp = {
-            'notebooks': result['response']['docs'] if 'response' in result else None,
+            '{}s'.format(target): result['response']['docs'] if 'response' in result else None,
             'limit': limit,
             'size': result['response']['numFound'] if 'response' in result else limit,
             'start': result['response']['start'] if 'response' in result else start,

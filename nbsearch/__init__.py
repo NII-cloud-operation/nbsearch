@@ -17,10 +17,15 @@ def load_jupyter_server_extension(nb_server_app):
 
 # nbextension
 def _jupyter_nbextension_paths():
-    return [dict(section='tree',
-                 src='nbextension',
-                 dest='nbsearch',
-                 require='nbsearch/main')]
+    notebook_ext = dict(section='notebook',
+                        src='nbextension',
+                        dest='nbsearch',
+                        require='nbsearch/notebook')
+    tree_ext = dict(section='tree',
+                    src='nbextension',
+                    dest='nbsearch',
+                    require='nbsearch/tree')
+    return [notebook_ext, tree_ext]
 
 
 # server extension
