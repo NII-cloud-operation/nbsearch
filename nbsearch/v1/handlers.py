@@ -30,6 +30,7 @@ class SearchHandler(tornado.web.RequestHandler):
             'limit': limit,
             'size': result['response']['numFound'] if 'response' in result else limit,
             'start': result['response']['start'] if 'response' in result else start,
+            'numFound': result['response']['numFound'] if 'response' in result else None,
             'sort': sort,
             'solrquery': solrquery,
             'error': result['error'] if 'error' in result else None,

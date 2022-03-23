@@ -1,6 +1,6 @@
 FROM solr:latest AS solr
 
-FROM niicloudoperation/notebook:202201
+FROM niicloudoperation/notebook
 
 USER root
 

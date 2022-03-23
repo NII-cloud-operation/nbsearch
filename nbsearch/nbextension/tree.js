@@ -30,6 +30,7 @@ define([
         let q = query ? Object.assign({}, query) : {};
         q[tab_id] = 'yes';
         delete q['notebooks'];
+        delete q['numFound'];
         delete q['error'];
         window.history.pushState(null, null, `?${$.param(q)}`);
 
@@ -37,6 +38,7 @@ define([
 
         q = newq ? Object.assign({}, newq) : {};
         delete q['notebooks'];
+        delete q['numFound'];
         delete q['error'];
 
         q[tab_id] = 'yes';
@@ -48,8 +50,6 @@ define([
     function get_base_path() {
         const firstHref = window.location.href.split(/[?#]/)[0];
         const notebookPath = utils.get_body_data('notebookPath');
-        console.log(log_prefix, 'URL: windown.location.href=' + firstHref +
-                    ', notebookPath=' + notebookPath);
         const decodedHref = decodeURI(firstHref);
         const last = decodedHref.substring(decodedHref.length - notebookPath.length);
         if (last != notebookPath) {
@@ -90,12 +90,10 @@ define([
 
     function download_notebook(path, notebook, loading_indicator) {
         loading_indicator.show();
-        console.log(log_prefix, 'Destination', path);
         prepare_notebook(path, notebook)
             .then(data => {
                 const base_url = utils.get_body_data('baseUrl');
                 const url = `${base_url}${base_url.endsWith('/') ? '' : '/'}notebooks${path}/${encodeURI(data.filename)}`
-                console.log(log_prefix, 'Imported', data, url);
                 window.open(url, '_blank');
                 loading_indicator.hide();
             })
@@ -175,7 +173,11 @@ define([
                 .text(`${data.error.msg} (code=${data.error.code})`));
             tbody.append(tr);
         }
-        $('.nbsearch-page-number').text(`${data.start}-${data.start + data.limit}`);
+        let pageNums = '';
+        if (data.numFound) {
+            pageNums = `${data.start}-${Math.min(data.start + data.limit, data.numFound)} / ${data.numFound}`;
+        }
+        $('.nbsearch-page-number').text(pageNums);
     }
 
     function render_error(err) {
@@ -196,7 +198,6 @@ define([
             .addClass('btn btn-link btn-xs')
             .append($('<i></i>').addClass('fa fa-angle-left'));
         prev_button.click(() => {
-            console.log(log_prefix, 'Previous', last_query);
             const query = Object.assign({}, last_query);
             if (parseInt(query.start) <= 0) {
               return;
@@ -208,7 +209,6 @@ define([
             );
             run_search(baseq)
                 .then(newq => {
-                    console.log(log_prefix, 'SUCCESS', newq);
                     last_query = newq;
                     diff_selected = {};
                 })
@@ -220,7 +220,6 @@ define([
             .addClass('btn btn-link btn-xs')
             .append($('<i></i>').addClass('fa fa-angle-right'));
         next_button.click(() => {
-            console.log(log_prefix, 'Next', last_query);
             const baseq = search.get_notebook_query(
                 (parseInt(last_query.start) + parseInt(last_query.limit)).toString(),
                 last_query.limit,
@@ -228,7 +227,6 @@ define([
             );
             run_search(baseq)
                 .then(newq => {
-                    console.log(log_prefix, 'SUCCESS', newq);
                     last_query = newq;
                     diff_selected = {};
                 })
@@ -244,7 +242,6 @@ define([
             .append('Diff');
         diff_button.click(() => {
             const notebooks = Object.entries(diff_selected).filter(v => v[1] !== null).map(v => v[1]);
-            console.log(notebooks);
             const promises = notebooks.map(notebook => {
                 return prepare_notebook('/nbsearch-tmp', notebook);
             });
@@ -260,7 +257,7 @@ define([
                     }, 10);
                 })
                 .catch(err => {
-                    console.log(log_prefix, err);
+                    console.error(log_prefix, err);
                 });
         });
 
@@ -313,9 +310,9 @@ define([
                 const baseq = search.get_notebook_query(
                     undefined, undefined, sort
                 );
+                $('#nbsearch_error').empty();
                 run_search(baseq)
                     .then(newq => {
-                        console.log(log_prefix, 'SUCCESS', newq);
                         last_query = newq;
                         $('.nbsearch-column-order').empty();
                         const sort_button = $('<i></i>');
@@ -328,6 +325,7 @@ define([
                     })
                     .catch(e => {
                         console.error(log_prefix, 'ERROR', e);
+                        $('#nbsearch_error').text('Network Error');
                     });
             });
             return $('<th></th>')
@@ -361,23 +359,25 @@ define([
             .attr('style', 'display: none;')
             .addClass('fa fa-spinner fa-pulse');
         const search_button = $('<button></button>')
+            .attr('id', 'nbsearch-perform-search')
             .addClass('btn btn-default btn-xs')
             .append($('<i></i>').addClass('fa fa-search'))
-            .append('検索');
+            .append('Search');
         search_button.click(() => {
             const baseq = search.get_notebook_query(
                 last_query.start, last_query.limit, last_query.sort
             );
+            $('#nbsearch_error').empty();
             run_search(baseq)
                 .then(newq => {
                     $('.nbsearch-save-button').prop('disabled', false);
                     $('.nbsearch-column-header').prop('disabled', false);
-                    console.log(log_prefix, 'SUCCESS', newq);
                     last_query = newq;
                     diff_selected = {};
                 })
                 .catch(e => {
                     console.error(log_prefix, 'ERROR', e);
+                    $('#nbsearch_error').text('Network Error');
                 });
         });
 
@@ -389,6 +389,7 @@ define([
                 .append(search_button)
                 .append(loading_indicator));
         const error = $('<div></div>')
+            .addClass('nbsearch-error-container')
             .attr('id', 'nbsearch_error');
         return $('<div></div>')
             .append(error)
@@ -451,7 +452,7 @@ define([
 
         insert_tab()
             .then(ui => {
-                console.log('UI created', ui);
+                console.log(log_prefix, 'UI created');
             });
     }
 

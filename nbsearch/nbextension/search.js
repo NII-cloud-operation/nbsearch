@@ -5,6 +5,7 @@ define([
 ) {
     const log_prefix = '[nbsearch]';
     const config = { url_prefix: '' };
+    let last_cell_queries = null;
 
     function init(url_prefix, target, renderers) {
         config.url_prefix = url_prefix;
@@ -35,9 +36,15 @@ define([
             .attr('id', 'nbsearch-target-text')
             .attr('size', '80')
             .attr('type', 'text');
+        target_text.keydown((e) => {
+            if (e.which !== 13) {
+                return;
+            }
+            $('#nbsearch-perform-search').click();
+        });
         const target_text_c = $('<div></div>')
             .addClass('nbsearch-category-body')
-            .append($('<span></span>').text('Solrクエリ:'))
+            .append($('<span></span>').text('Solr Query:'))
             .append(target_text)
         if (target.solrquery) {
             const params = new URLSearchParams(target.solrquery);
@@ -52,26 +59,26 @@ define([
         const fieldtype = $('<select></select>')
             .addClass('nbsearch-cell-field-type');
         [
-          ['_text_', '全文検索'],
-          ['owner', '所有者'],
-          ['filename', 'ファイル名'],
-          ['server', 'サーバーURL'],
-          ['source', 'Cellのテキスト'],
-          ['outputs', 'Cellの出力'],
-          ['lc_cell_memes', 'Cell MEME'],
-          ['lc_notebook_meme__current', 'Notebook MEME'],
-          ['signature_notebook_path', 'Notebookパス'],
-          ['source__code', 'Code Cell'],
-          ['source__markdown', 'Markdown Cell'],
-          ['source__markdown__operation_note', 'Operation Note'],
-          ['source__markdown__todo', 'Markdown Cell中の`TODO`'],
-          ['source__markdown__heading', 'Markdown Cell中の見出し'],
-          ['source__markdown__url', 'Markdown Cell中のURL'],
-          ['source__markdown__code', 'Markdown Cell中のコード'],
-          ['outputs__stdout', 'Cellの標準出力'],
-          ['outputs__stderr', 'Cellの標準エラー出力'],
-          ['outputs__result_plain', 'Cellの結果出力'],
-          ['outputs__result_html', 'Cellの結果HTML出力'],
+          ['_text_', 'Full text search'],
+          ['owner', 'Owner name'],
+          ['filename', 'File name'],
+          ['server', 'Server URL'],
+          ['source', 'Text in cell'],
+          ['outputs', 'Output of cell'],
+          ['lc_cell_memes', 'MEME of cell'],
+          ['lc_notebook_meme__current', 'MEME of notebook'],
+          ['signature_notebook_path', 'File path'],
+          ['source__code', 'Text in code cell'],
+          ['source__markdown', 'Text in markdown cell'],
+          ['source__markdown__operation_note', 'Text in Operation Note'],
+          ['source__markdown__todo', '`TODO` in markdown cell'],
+          ['source__markdown__heading', 'Header in markdown cell'],
+          ['source__markdown__url', 'URL in markdown cell'],
+          ['source__markdown__code', 'Code in markdown cell'],
+          ['outputs__stdout', 'STDOUT of cell'],
+          ['outputs__stderr', 'STDERR of cell'],
+          ['outputs__result_plain', 'Result Text of cell'],
+          ['outputs__result_html', 'Result HTML of cell'],
         ].forEach(v => {
             fieldtype.append($('<option></option>').attr('value', v[0]).text(v[1]));
         });
@@ -82,6 +89,12 @@ define([
             .addClass('nbsearch-cell-field-value');
         fieldvalue.val(value);
         fieldvalue.change(change_callback)
+        fieldvalue.keydown((e) => {
+            if (e.which !== 13) {
+                return;
+            }
+            $('#nbsearch-perform-search').click();
+        });
         const container = $('<span></span>');
         return container
             .addClass('nbsearch-cell-field')
@@ -106,8 +119,8 @@ define([
     function _create_notebook_query_ui(cell, change_callback) {
         const cell_cond = $('<select></select>')
             .attr('id', 'nbsearch-cell-cond')
-            .append($('<option></option>').attr('value', 'AND').text('すべて成立'))
-            .append($('<option></option>').attr('value', 'OR').text('いずれか成立'));
+            .append($('<option></option>').attr('value', 'AND').text('All conditions'))
+            .append($('<option></option>').attr('value', 'OR').text('Any of the conditions'));
         let conds = (cell.conds || []).map(element => element);
         if (cell && cell.q_op) {
             cell_cond.val(cell.q_op);
@@ -120,8 +133,8 @@ define([
         }
         const cell_cond_c = $('<div></div>')
             .addClass('nbsearch-category-body')
-            .append($('<span></span>').text('以下の条件が'))
-            .append(cell_cond);
+            .append(cell_cond)
+            .append($('<span></span>').text('are satisfied'));
 
         const cell_conds = $('<div></div>')
             .addClass('nbsearch-category-body');
@@ -131,7 +144,7 @@ define([
         const cell_add_button = $('<button></button>')
             .addClass('btn btn-default btn-xs')
             .append($('<i></i>').addClass('fa fa-plus'))
-            .append('条件を追加');
+            .append('Add condition');
         cell_add_button.click(() => {
             cell_conds.append(_create_cell_element_query_ui('_text_', '*', change_callback));
         });
@@ -149,8 +162,8 @@ define([
         const solr_query = _create_target_query_ui(query || {});
 
         const tabs = $('<div></div>').addClass('nbsearch-query-tabs');
-        const solr_query_button = $('<a></a>').text('Solrクエリ');
-        const query_editor_button = $('<a></a>').text('検索');
+        const solr_query_button = $('<a></a>').text('Solr Query');
+        const query_editor_button = $('<a></a>').text('Search');
         const solr_query_tab = $('<div></div>').append(solr_query_button);
         const query_editor_tab = $('<div></div>').append(query_editor_button);
         tabs.append(query_editor_tab);
@@ -201,7 +214,7 @@ define([
             .append($('<div></div>')
                 .attr('id', 'nbsearch-query-preview-container')
                 .addClass('nbsearch-category-body')
-                .append($('<span></span>').text('Solrクエリ:'))
+                .append($('<span></span>').text('Solr Query:'))
                 .append(query_preview)
                 .hide());
         return _create_base_query_ui(query_editor, query)
@@ -209,29 +222,28 @@ define([
 
     function _get_cell_queries(search_context) {
         const queries = [];
-        if (search_context.lc_cell_meme__current) {
-            queries.push({
-                name: 'Search by MEME',
-                query: `cell_type:${search_context.cell_type} AND lc_cell_meme__current:${search_context.lc_cell_meme__current}`,
-            });
-        }
-        if (search_context.lc_cell_meme__previous) {
-            queries.push({
-                name: 'Search by previous MEME',
-                query: `cell_type:${search_context.cell_type} AND lc_cell_meme__previous:${search_context.lc_cell_meme__previous}`,
-            });
-        }
-        if (search_context.source) {
-            const source = search_context.source.replaceAll('\n', ' ');
-            queries.push({
-                name: 'Search by content',
-                query: `cell_type:${search_context.cell_type} AND source__${search_context.cell_type}:${source}`,
-            });
-        }
         queries.push({
-            name: `All ${search_context.cell_type} cells`,
-            query: `cell_type:${search_context.cell_type}`,
+            name: 'Search by MEME',
+            query_id: 'search-by-meme',
+            query: function() {
+                if (search_context.lc_cell_meme__current) {
+                    return `cell_type:${search_context.cell_type} AND lc_cell_meme__current:${search_context.lc_cell_meme__current}`;
+                } else if(search_context.lc_cell_meme__previous) {
+                    return `lc_cell_meme__previous:${search_context.lc_cell_meme__previous}`;
+                } else if(search_context.lc_cell_meme__next) {
+                    return `lc_cell_meme__next:${search_context.lc_cell_meme__next}`;
+                }
+            },
         });
+        queries.push({
+            name: 'Search by content',
+            query_id: 'search-by-content',
+            query: function() {
+                const source = search_context.source.replaceAll('\n', ' ');
+                return `cell_type:${search_context.cell_type} AND source__${search_context.cell_type}:${source}`;
+            },
+        });
+        last_cell_queries = queries;
         return queries;
     }
 
@@ -240,7 +252,7 @@ define([
             .attr('id', 'nbsearch-query-preview');
         const query_editor = $('<select></select>').attr('id', 'nbsearch-cell-query');
         _get_cell_queries(search_context).forEach(function(option) {
-            query_editor.append($('<option></option>').attr('value', option.query).text(option.name));
+            query_editor.append($('<option></option>').attr('value', option.query_id).text(option.name));
         });
         query_editor.change(function() {
             query = _get_cell_query();
@@ -251,7 +263,7 @@ define([
             .append($('<div></div>')
                 .attr('id', 'nbsearch-query-preview-container')
                 .addClass('nbsearch-category-body')
-                .append($('<span></span>').text('Solrクエリ:'))
+                .append($('<span></span>').text('Solr Query:'))
                 .append(query_preview)
                 .hide());
         return _create_base_query_ui(query_editor_container, query)
@@ -269,7 +281,9 @@ define([
     }
 
     function _get_cell_query() {
-        return $('#nbsearch-cell-query').val();
+        const query_id = $('#nbsearch-cell-query').val();
+        const q = last_cell_queries.filter(query => query.query_id === query_id);
+        return q[0].query();
     }
 
     function get_notebook_query(start, limit, sort) {
@@ -321,14 +335,13 @@ define([
 
     function execute(query_) {
         const query = Object.assign({}, query_);
-        console.log(log_prefix, 'QUERY', query);
         return new Promise((resolve, reject) => {
             if (config.renderers && config.renderers.render_loading) {
                 config.renderers.render_loading();
             }
-            var jqxhr = $.getJSON(`${config.url_prefix}/v1/${config.target}/search?${$.param(query)}`)
+            $.getJSON(`${config.url_prefix}/v1/${config.target}/search?${$.param(query)}`)
                 .done(data => {
-                    console.log(log_prefix, 'query', data.solrquery);
+                    console.log(log_prefix, 'Solr Query', data.solrquery);
                     if (config.renderers && config.renderers.render_results) {
                         config.renderers.render_results(data);
                     }
