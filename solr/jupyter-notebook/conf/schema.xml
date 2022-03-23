@@ -11,6 +11,11 @@
       <tokenizer class="solr.UAX29URLEmailTokenizerFactory"/>
     </analyzer>
   </fieldType>
+  <fieldType name="text_user" class="solr.TextField" positionIncrementGap="100" autoGeneratePhraseQueries="false">
+    <analyzer>
+      <tokenizer class="solr.PatternTokenizerFactory" pattern="(nii|tx|vr|airi|[a-zA-Z0-9_]+)" group="1"/>
+    </analyzer>
+  </fieldType>
   <fieldType name="text_meme" class="solr.TextField" positionIncrementGap="100" autoGeneratePhraseQueries="false">
     <analyzer>
       <tokenizer class="solr.PatternTokenizerFactory" pattern="([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}|-[0-9a-zA-Z-]+)" group="1"/>
@@ -49,7 +54,7 @@
   <field name="atime" type="date" multiValued="false" indexed="true" required="true" stored="true"/>
   <field name="mtime" type="date" multiValued="false" indexed="true" required="true" stored="true"/>
   <field name="ctime" type="date" multiValued="false" indexed="true" required="true" stored="true"/>
-  <field name="owner" type="string" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="owner" type="text_user" multiValued="false" indexed="true" required="false" stored="true"/>
   <field name="filename" type="string" multiValued="false" indexed="true" required="true" stored="true"/>
   <field name="server" type="url" multiValued="false" indexed="true" required="false" stored="true"/>
   <field name="signature_notebook_path" type="string" multiValued="false" indexed="true" required="false" stored="true"/>

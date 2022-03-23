@@ -129,10 +129,10 @@ class UpdateIndexHandler(LoggingConfigurable):
         for file in source.get_files():
             if path is not None and os.path.split(file['path'])[-1] != os.path.split(path)[-1]:
                 continue
-            notebook_data = source.get_notebook(file['server'], file['path'])
-            attr = dict([(k, v) for k, v in file.items()
-                         if k in ['server', 'owner', 'mtime', 'ctime', 'atime'] and v is not None])
             try:
+                notebook_data = source.get_notebook(file['server'], file['path'])
+                attr = dict([(k, v) for k, v in file.items()
+                             if k in ['server', 'owner', 'mtime', 'ctime', 'atime'] and v is not None])
                 r = solr.ipynb_to_documents(file['path'], notebook_data, attr=attr)
                 results = []
                 for core, docs in r.items():
