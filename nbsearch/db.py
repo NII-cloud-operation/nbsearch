@@ -21,6 +21,10 @@ class NBSearchDB(Configurable):
 
     solr_base_url = Unicode('http://localhost:8983', help='The base url of Solr').tag(config=True)
 
+    solr_basic_auth_username = Unicode(help='The username for the basic authentication of Solr').tag(config=True)
+
+    solr_basic_auth_password = Unicode(help='The password for the basic authentication of Solr').tag(config=True)
+
     s3_endpoint_url = Unicode('http://localhost:9000', help='The endpoint of S3').tag(config=True)
 
     s3_access_key = Unicode(help='The access key of S3').tag(config=True)
@@ -43,6 +47,7 @@ class NBSearchDB(Configurable):
             method='POST',
             body=json.dumps(jsondoc),
             headers={'Content-Type': 'application/json'},
+            **self._http_kwargs(),
         ))
 
     def _build_query(self, query, q_op=None, start=None, rows=None, sort=None):
@@ -64,6 +69,7 @@ class NBSearchDB(Configurable):
         response = await http_client.fetch(HTTPRequest(
             urljoin(self.solr_base_url, f'solr/{core}/select?{urlquery}'),
             method='GET',
+            **self._http_kwargs(),
         ), raise_error=False)
         if response.code >= 500:
             raise HTTPError(response.code)
@@ -95,6 +101,16 @@ class NBSearchDB(Configurable):
         )
         async with session.client('s3', endpoint_url=self.s3_endpoint_url) as s3:
             await s3.download_fileobj(self.s3_bucket_name, notebook_id, f)
+
+    def _http_kwargs(self):
+        if self.solr_basic_auth_username or self.solr_basic_auth_password:
+            return {
+                'auth_mode': 'basic',
+                'auth_username': self.solr_basic_auth_username,
+                'auth_password': self.solr_basic_auth_password,
+            }
+        return {}
+
 
 
 class UpdateIndexHandler(LoggingConfigurable):
