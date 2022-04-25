@@ -225,8 +225,12 @@ define([
         selector
             .attr('id', 'nbsearch-search-for')
             .append($('<option></option>').attr('value', 'current').text('Current cell'))
-            .append($('<option></option>').attr('value', 'next').text('Next cell'))
-            .append($('<option></option>').attr('value', 'previous').text('Previous cell'))
+            .append($('<option></option>').attr('value', 'next').text('Subsequent cell'))
+            .append($('<option></option>').attr('value', 'previous').text('Preceding cell'))
+            .append($('<option></option>').attr('value', 'next-section').text('Subsequent cells(in section)'))
+            .append($('<option></option>').attr('value', 'previous-section').text('Preceding cells(in section)'))
+            .append($('<option></option>').attr('value', 'next-notebook').text('Subsequent cells(in notebook)'))
+            .append($('<option></option>').attr('value', 'previous-notebook').text('Preceding cells(in notebook)'))
             .change(() => {
                 update_search_context();
                 update_mirage();
@@ -420,23 +424,40 @@ define([
         if (target_cell.code_mirror) {
             last_search_context.source = target_cell.code_mirror.getValue() || '';
         }
+        last_search_context.lc_cell_meme__current = null;
+        last_search_context.lc_cell_meme__next = null;
+        last_search_context.lc_cell_meme__previous = null;
+        last_search_context.lc_cell_memes__next__in_section = null;
+        last_search_context.lc_cell_memes__previous__in_section = null;
+        last_search_context.lc_cell_memes__next__in_notebook = null;
+        last_search_context.lc_cell_memes__previous__in_notebook = null;
         if (search_for === 'current') {
             if (metadata && metadata.lc_cell_meme && metadata.lc_cell_meme.current) {
                 last_search_context.lc_cell_meme__current = metadata.lc_cell_meme.current;
-                last_search_context.lc_cell_meme__next = null;
-                last_search_context.lc_cell_meme__previous = null;
             }
         } else if (search_for === 'next') {
             if (metadata && metadata.lc_cell_meme && metadata.lc_cell_meme.current) {
                 last_search_context.lc_cell_meme__previous = metadata.lc_cell_meme.current;
-                last_search_context.lc_cell_meme__current = null;
-                last_search_context.lc_cell_meme__next = null;
             }
         } else if (search_for === 'previous') {
             if (metadata && metadata.lc_cell_meme && metadata.lc_cell_meme.current) {
                 last_search_context.lc_cell_meme__next = metadata.lc_cell_meme.current;
-                last_search_context.lc_cell_meme__current = null;
-                last_search_context.lc_cell_meme__previous = null;
+            }
+        } else if (search_for === 'next-section') {
+            if (metadata && metadata.lc_cell_meme && metadata.lc_cell_meme.current) {
+                last_search_context.lc_cell_memes__previous__in_section = metadata.lc_cell_meme.current;
+            }
+        } else if (search_for === 'previous-section') {
+            if (metadata && metadata.lc_cell_meme && metadata.lc_cell_meme.current) {
+                last_search_context.lc_cell_memes__next__in_section = metadata.lc_cell_meme.current;
+            }
+        } else if (search_for === 'next-notebook') {
+            if (metadata && metadata.lc_cell_meme && metadata.lc_cell_meme.current) {
+                last_search_context.lc_cell_memes__previous__in_notebook = metadata.lc_cell_meme.current;
+            }
+        } else if (search_for === 'previous-notebook') {
+            if (metadata && metadata.lc_cell_meme && metadata.lc_cell_meme.current) {
+                last_search_context.lc_cell_memes__next__in_notebook = metadata.lc_cell_meme.current;
             }
         }
     }
@@ -460,14 +481,14 @@ define([
                 .append(buttons)
                 .append(mirage)
                 .hide());
-        } else if (search_for === 'next') {
+        } else if (search_for.match(/^next/)) {
             element.after($('<div></div>')
                 .addClass('nbsearch-mirage')
                 .addClass('nbsearch-mirage-container')
                 .append(buttons)
                 .append(mirage)
                 .hide());
-        } else if (search_for === 'previous') {
+        } else if (search_for.match(/^previous/)) {
             element.before($('<div></div>')
                 .addClass('nbsearch-mirage')
                 .addClass('nbsearch-mirage-container')

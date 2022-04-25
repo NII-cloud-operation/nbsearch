@@ -1,4 +1,5 @@
 tornado
+requests
 traitlets
 python-dateutil
 aioboto3

@@ -232,6 +232,14 @@ define([
                     return `lc_cell_meme__previous:${search_context.lc_cell_meme__previous}`;
                 } else if(search_context.lc_cell_meme__next) {
                     return `lc_cell_meme__next:${search_context.lc_cell_meme__next}`;
+                } else if(search_context.lc_cell_memes__previous__in_section) {
+                    return `lc_cell_memes__previous__in_section:${search_context.lc_cell_memes__previous__in_section}`;
+                } else if(search_context.lc_cell_memes__next__in_section) {
+                    return `lc_cell_memes__next__in_section:${search_context.lc_cell_memes__next__in_section}`;
+                } else if(search_context.lc_cell_memes__previous__in_notebook) {
+                    return `lc_cell_memes__previous__in_notebook:${search_context.lc_cell_memes__previous__in_notebook}`;
+                } else if(search_context.lc_cell_memes__next__in_notebook) {
+                    return `lc_cell_memes__next__in_notebook:${search_context.lc_cell_memes__next__in_notebook}`;
                 }
             },
         });
@@ -239,12 +247,22 @@ define([
             name: 'Search by content',
             query_id: 'search-by-content',
             query: function() {
-                const source = search_context.source.replaceAll('\n', ' ');
+                const source = _escape_solr(search_context.source.replaceAll('\n', ' '));
                 return `cell_type:${search_context.cell_type} AND source__${search_context.cell_type}:${source}`;
             },
         });
         last_cell_queries = queries;
         return queries;
+    }
+
+    function _escape_solr(source) {
+        const chars = ['\\', '+', '-', '&&', '||', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':'];
+        let replaced = source;
+        chars.forEach(function(char_) {
+            const echar = '\\' + char_.split('').join('\\');
+            replaced = replaced.replaceAll(char_, echar);
+        })
+        return replaced;
     }
 
     function create_cell_query_ui(search_context, query) {

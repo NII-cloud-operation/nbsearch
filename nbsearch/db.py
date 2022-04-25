@@ -19,17 +19,17 @@ from . import solr
 
 class NBSearchDB(Configurable):
 
-    solr_base_url = Unicode('http://localhost:8983', help='The base url of Solr').tag(config=True)
+    solr_base_url = Unicode('http://localhost:8983', help='The base URL of Solr').tag(config=True)
 
-    solr_basic_auth_username = Unicode(help='The username for the basic authentication of Solr').tag(config=True)
+    solr_basic_auth_username = Unicode(help='The username for the basic authentication for Solr').tag(config=True)
 
-    solr_basic_auth_password = Unicode(help='The password for the basic authentication of Solr').tag(config=True)
+    solr_basic_auth_password = Unicode(help='The password for the basic authentication for Solr').tag(config=True)
 
-    s3_endpoint_url = Unicode('http://localhost:9000', help='The endpoint of S3').tag(config=True)
+    s3_endpoint_url = Unicode('http://localhost:9000', help='The URL of S3').tag(config=True)
 
-    s3_access_key = Unicode(help='The access key of S3').tag(config=True)
+    s3_access_key = Unicode(help='The access key for S3').tag(config=True)
 
-    s3_secret_key = Unicode(help='The secret key of S3').tag(config=True)
+    s3_secret_key = Unicode(help='The secret key for S3').tag(config=True)
 
     s3_region_name = Unicode(None, help='The region name of S3', allow_none=True).tag(config=True)
 

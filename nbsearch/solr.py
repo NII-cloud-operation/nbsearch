@@ -37,6 +37,16 @@ def _meme_to_solr_document(meme):
         doc['lc_cell_meme__execution_end_time'] = meme['execution_end_time']
     return doc
 
+def _get_current_meme(cell):
+    if 'metadata' not in cell:
+        return None
+    if 'lc_cell_meme' not in cell['metadata']:
+        return None
+    meme = cell['metadata']['lc_cell_meme']
+    if 'current' not in meme:
+        return None
+    return meme['current']
+
 def _add_field(fields, name, text):
     if name not in fields:
         fields[name] = text
@@ -115,6 +125,59 @@ def _contains_markdown(fields, name, keywords):
         return False
     return any([k in fields[name].lower() for k in keywords])
 
+def _get_markdown_ast_heading_levels(ast):
+    if ast['type'] == 'Heading':
+        return (ast['level'], ast['level'])
+    if 'children' not in ast:
+        return None
+    pre_r = None
+    post_r = None
+    for child in ast['children']:
+        levels = _get_markdown_ast_heading_levels(child)
+        if levels is None:
+            continue
+        if pre_r is None:
+            pre_r, post_r = levels
+            continue
+        _, post_r = levels
+    if pre_r is None:
+        return None
+    return (pre_r, post_r)
+
+def _get_markdown_heading_levels(cell):
+    if cell['cell_type'] != 'markdown' or 'source' not in cell:
+        return None
+    markdown = ''.join(cell['source'])
+    ast = json.loads(mistletoe.markdown(markdown, ASTRenderer))
+    return _get_markdown_ast_heading_levels(ast)
+
+def _find_section_beginning(headings, index, start_level=None):
+    if index == 0:
+        return 0
+    current = headings[index]
+    if current is not None:
+        if start_level is None:
+            return index
+        if start_level - 1 >= current[0]:
+            return index
+    return _find_section_beginning(headings, index - 1, start_level=start_level)
+
+def _find_section_ending(headings, index, start_level=None):
+    if index + 1 >= len(headings):
+        return len(headings)
+    current_levels = [h[-1] for h in headings[:index + 1] if h is not None]
+    post = headings[index + 1]
+    if len(current_levels) == 0:
+        # If there is no preceding heading, then it will be applied to the end.
+        return len(headings)
+    if post is None:
+        return _find_section_ending(headings, index + 1, start_level=start_level)
+    current_level = start_level if start_level is not None else current_levels[-1]
+    post_level, _ = post
+    if current_level < post_level:
+        return _find_section_ending(headings, index + 1, start_level=current_level)
+    return index + 1
+
 def markdown_to_solr_fields(markdown, prefix=''):
     ast = json.loads(mistletoe.markdown(markdown, ASTRenderer))
     r = {}
@@ -132,7 +195,7 @@ def markdown_to_solr_fields(markdown, prefix=''):
         r[f'{prefix}todo'] = markdown
     return r
 
-def cell_to_solr_document(notebook_id, path, cell, cell_index, notebook_attr=None):
+def cell_to_solr_document(notebook_id, path, cell, cell_index, cells=None, notebook_attr=None):
     doc = {
         'id': notebook_id + f'_{cell_index}',
         'index': cell_index,
@@ -152,6 +215,30 @@ def cell_to_solr_document(notebook_id, path, cell, cell_index, notebook_attr=Non
         doc[top_field] = cell[top_field]
     if 'metadata' in cell and 'lc_cell_meme' in cell['metadata']:
         doc.update(_meme_to_solr_document(cell['metadata']['lc_cell_meme']))
+    if cells is not None:
+        all_memes = [_get_current_meme(c) for c in cells]
+        all_heading_levels = [_get_markdown_heading_levels(c) for c in cells]
+        current_heading_level_ = all_heading_levels[cell_index]
+        if current_heading_level_ is None:
+            current_heading_level = None
+        else:
+            current_heading_level, _ = current_heading_level_
+        doc['lc_cell_memes__previous__in_notebook'] = ' '.join(
+            [meme for meme in all_memes[:cell_index] if meme is not None]
+        )
+        doc['lc_cell_memes__next__in_notebook'] = ' '.join(
+            [meme for meme in all_memes[cell_index + 1:] if meme is not None]
+        )
+        doc['lc_cell_memes__previous__in_section'] = ' '.join(
+            [meme for meme in all_memes[_find_section_beginning(
+                all_heading_levels, cell_index, start_level=current_heading_level,
+            ):cell_index] if meme is not None]
+        )
+        doc['lc_cell_memes__next__in_section'] = ' '.join(
+            [meme for meme in all_memes[cell_index + 1:_find_section_ending(
+                all_heading_levels, cell_index
+            )] if meme is not None]
+        )
     if cell['cell_type'] == 'code' and 'source' in cell:
         code = ''.join(cell['source'])
         doc['source__code'] = code
@@ -242,7 +329,11 @@ def ipynb_to_documents(path, notebook_data, attr=None, user_pattern=None):
         return {
             'jupyter-notebook': [notebook_docs],
         }
-    cell_docs = [cell_to_solr_document(notebook_id, path, cell, cell_index, notebook_attr=notebook_attr)
+    cell_docs = [cell_to_solr_document(
+                    notebook_id, path, cell, cell_index,
+                    cells=notebook_data['cells'],
+                    notebook_attr=notebook_attr
+                 )
                  for cell_index, cell in enumerate(notebook_data['cells'])]
     return {
         'jupyter-cell': cell_docs,

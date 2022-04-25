@@ -92,9 +92,9 @@ class LocalSource(Source):
                         'server': self.server,
                         'path': db_path,
                         'owner': self._get_owner(actual_path),
-                        'mtime': datetime.fromtimestamp(stat.st_mtime, tz=pytz.utc).astimezone(pytz.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
-                        'atime': datetime.fromtimestamp(stat.st_atime, tz=pytz.utc).astimezone(pytz.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
-                        'ctime': datetime.fromtimestamp(stat.st_ctime, tz=pytz.utc).astimezone(pytz.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
+                        'mtime': datetime.fromtimestamp(stat.st_mtime).astimezone(pytz.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
+                        'atime': datetime.fromtimestamp(stat.st_atime).astimezone(pytz.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
+                        'ctime': datetime.fromtimestamp(stat.st_ctime).astimezone(pytz.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
                     }
                 else:
                     self.log.debug('ignore file that are not ipynb: {}'.format(actual_path))
