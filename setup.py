@@ -9,9 +9,6 @@ VERSION_NS = {}
 with open(os.path.join(HERE, 'nbsearch', '_version.py')) as f:
     exec(f.read(), {}, VERSION_NS)
 
-shutil.copyfile(os.path.join(HERE, 'nbsearch', 'static', 'js', 'search.js'),
-                os.path.join(HERE, 'nbsearch', 'nbextension', 'search.js'))
-
 setup_args = dict(name='nbsearch',
       version=VERSION_NS['__version__'],
       description='NBSearch Jupyter Extension',
@@ -21,8 +18,13 @@ setup_args = dict(name='nbsearch',
       zip_safe=False,
       platforms=['Jupyter Notebook 6.x'],
       install_requires=[
-          'notebook>=4.2.0',
-          'motor',
+          'tornado',
+          'requests',
+          'traitlets',
+          'python-dateutil',
+          'aioboto3',
+          'mistletoe',
+          'pytz',
       ],
       extras_require={
           'test': [

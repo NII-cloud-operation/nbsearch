@@ -2,7 +2,9 @@ from datetime import datetime
 from fnmatch import fnmatch
 import json
 import os
+import re
 
+import pytz
 from traitlets import Unicode
 from traitlets.config import LoggingConfigurable
 
@@ -34,9 +36,13 @@ class Source(LoggingConfigurable):
 
 class LocalSource(Source):
 
-    base_dir = Unicode('base_dir', help='base directory').tag(config=True)
+    base_dir = Unicode(help='Base directory').tag(config=True)
 
-    server = Unicode('server', help='My server address').tag(config=True)
+    server = Unicode(help='My server address').tag(config=True)
+
+    owner = Unicode(help='Owner of files').tag(config=True)
+
+    owner_pattern = Unicode(help='The regex pattern for owner').tag(config=True)
 
     def __init__(self, **kwargs):
         super(LocalSource, self).__init__(**kwargs)
@@ -82,7 +88,24 @@ class LocalSource(Source):
             elif os.path.isfile(actual_path):
                 if name.lower().endswith('.ipynb'):
                     stat = os.stat(actual_path)
-                    yield {'server': self.server, 'path': db_path, 'mtime': datetime.utcfromtimestamp(stat.st_mtime), 'atime': datetime.utcfromtimestamp(stat.st_atime)}
+                    yield {
+                        'server': self.server,
+                        'path': db_path,
+                        'owner': self._get_owner(actual_path),
+                        'mtime': datetime.fromtimestamp(stat.st_mtime).astimezone(pytz.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
+                        'atime': datetime.fromtimestamp(stat.st_atime).astimezone(pytz.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
+                        'ctime': datetime.fromtimestamp(stat.st_ctime).astimezone(pytz.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
+                    }
                 else:
                     self.log.debug('ignore file that are not ipynb: {}'.format(actual_path))
                     continue
+
+    def _get_owner(self, path):
+        if self.owner is not None and len(self.owner) > 0:
+            return self.owner
+        if self.owner_pattern is None or len(self.owner_pattern) == 0:
+            return None
+        m = re.match(self.owner_pattern, path)
+        if not m:
+            return None
+        return m.group('owner')

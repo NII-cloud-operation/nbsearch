@@ -1,3 +1,7 @@
+.nbsearch-error-container {
+  color: red;
+}
+
 .nbsearch-todo {
   color: grey;
 }
@@ -41,4 +45,92 @@
 
 .nbsearch-import {
   padding: 0.2em;
+}
+
+.nbsearch-query-tabs {
+  display: flex;
+}
+
+.nbsearch-query-tabs > div {
+  padding: 0.5em;
+  margin-bottom: 0.5em;
+  cursor: default;
+}
+
+.nbsearch-query-tab-active {
+  border-top: 1px solid #ccc;
+  border-left: 1px solid #ccc;
+  border-right: 1px solid #ccc;
+}
+
+.nbsearch-query-tab-inactive {
+  border-bottom: 1px solid #ccc;
+}
+
+.nbsearch-notebook-result {
+  position: fixed;
+  right: 0;
+  background-color: rgba(255, 255, 255, 0.9);
+  z-index: 100;
+  bottom: 0;
+  border-left: 1px solid #ccc;
+  border-top: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+  padding-left: 8px;
+}
+
+.nbsearch-search-cell-result {
+  flex-grow: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.nbsearch-search-for {
+  display: flex;
+  margin-bottom: 1em;
+}
+
+.nbsearch-search-for-label {
+  font-weight: bold;
+  margin-right: 0.5em;
+}
+
+.nbsearch-notebook-result .ui-resizable-w {
+  position: absolute;
+  top: calc(50% - 8px);
+}
+
+.fa-append-search:before {
+  content: "\f002";
+}
+
+.fa-append-search:after {
+  content: "+";
+}
+
+.nbsearch-mirage {
+  display: flex;
+  background-color: rgba(255, 255, 255, 0.8);
+}
+
+.nbsearch-mirage-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+.nbsearch-mirage-cell {
+  flex-grow: 1;
+  padding: 0.5em 1em;
+}
+
+.nbsearch-mirage-buttons {
+  margin: 0.5em 1em;
+}
+
+.nbsearch-mirage-cell-content {
+  border: 2px solid rgba(128, 128, 255, 0.8);
 }

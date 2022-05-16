@@ -1,3 +1,4 @@
+import asyncio
 import os
 import sys
 
@@ -11,9 +12,9 @@ from .db import UpdateIndexHandler
 
 
 class UpdateIndexApp(Application):
-    """Update Index of MongoDB"""
+    """Update Index of Solr"""
     name = "jupyter nbsearch update-index"
-    description = "Update Index of MongoDB"
+    description = "Update Index of Solr"
     version = __version__
 
     examples = """
@@ -37,7 +38,7 @@ class UpdateIndexApp(Application):
         config_path = self.extra_args[0]
         source = self.extra_args[1]
         path = self.extra_args[2] if len(self.extra_args) == 3 else None
-        self.handler.update(config_path, source, path)
+        asyncio.run(self.handler.update(config_path, source, path))
 
 
 class ExtensionApp(Application):
@@ -52,7 +53,7 @@ class ExtensionApp(Application):
     subcommands.update({
         "update-index": (
             UpdateIndexApp,
-            "Update Index of MongoDB"
+            "Update Index of Solr"
         ),
     })
 

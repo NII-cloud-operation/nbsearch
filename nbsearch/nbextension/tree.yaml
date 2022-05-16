@@ -1,6 +1,6 @@
 Type: Jupyter Notebook Extension
-Name: NBSearch
+Name: NBSearch - Tree
 Section: tree
 Description: "Database Extension for Notebooks"
-Main: main.js
+Main: tree.js
 Compatibility: 6.x

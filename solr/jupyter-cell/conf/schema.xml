@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Solr managed schema - automatically generated - DO NOT EDIT -->
+<schema name="example-basic" version="1.6">
+  <uniqueKey>id</uniqueKey>
+
+  <fieldType name="long" class="solr.TrieLongField" positionIncrementGap="0" docValues="true" precisionStep="0"/>
+  <fieldType name="int" class="solr.TrieIntField" positionIncrementGap="0" docValues="true" precisionStep="0"/>
+  <fieldType name="string" class="solr.StrField" sortMissingLast="true" docValues="true"/>
+  <fieldType name="date" class="solr.TrieDateField" sortMissingLast="true" docValues="true"/>
+  <fieldType name="url" class="solr.TextField" positionIncrementGap="100" autoGeneratePhraseQueries="false">
+    <analyzer>
+      <tokenizer class="solr.UAX29URLEmailTokenizerFactory"/>
+    </analyzer>
+  </fieldType>
+  <fieldType name="text_user" class="solr.TextField" positionIncrementGap="100" autoGeneratePhraseQueries="false">
+    <analyzer>
+      <tokenizer class="solr.PatternTokenizerFactory" pattern="(nii|tx|vr|airi|[a-zA-Z0-9_]+)" group="1"/>
+    </analyzer>
+  </fieldType>
+  <fieldType name="text_meme" class="solr.TextField" positionIncrementGap="100" autoGeneratePhraseQueries="false">
+    <analyzer>
+      <tokenizer class="solr.PatternTokenizerFactory" pattern="([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}|-[0-9a-zA-Z-]+)" group="1"/>
+    </analyzer>
+  </fieldType>
+  <fieldType name="text_ja" class="solr.TextField" positionIncrementGap="100" autoGeneratePhraseQueries="false">
+    <analyzer>
+      <tokenizer class="solr.JapaneseTokenizerFactory" mode="normal" discardPunctuation="true"/>
+      <!-- Reduces inflected verbs and adjectives to their base/dictionary forms (辞書形) -->
+      <filter class="solr.JapaneseBaseFormFilterFactory"/>
+      <!-- Removes tokens with certain part-of-speech tags -->
+      <!--
+      <filter class="solr.JapanesePartOfSpeechStopFilterFactory" tags="lang/stoptags_ja.txt" enablePositionIncrements="true"/>
+      -->
+      <!-- Normalizes full-width romaji to half-width and half-width kana to full-width (Unicode NFKC subset) -->
+      <filter class="solr.CJKWidthFilterFactory"/>
+      <!-- Removes common tokens typically not useful for search, but have a negative effect on ranking -->
+      <!--
+      <filter class="solr.StopFilterFactory" ignoreCase="true" words="lang/stopwords_ja.txt" enablePositionIncrements="true" />
+      -->
+      <!-- Normalizes common katakana spelling variations by removing any last long sound character (U+30FC) -->
+      <filter class="solr.JapaneseKatakanaStemFilterFactory" minimumLength="4"/>
+      <!-- Lower-cases romaji characters -->
+      <filter class="solr.LowerCaseFilterFactory"/>
+    </analyzer>
+  </fieldType>
+  <fieldType name="text_script" class="solr.TextField" positionIncrementGap="100" autoGeneratePhraseQueries="false">
+    <analyzer>
+      <tokenizer class="solr.StandardTokenizerFactory"/>
+    </analyzer>
+  </fieldType>
+
+  <field name="_version_" type="long" indexed="true" stored="false"/>
+  <field name="id" type="string" multiValued="false" indexed="true" required="true" stored="true"/>
+  <field name="_text_" type="text_ja" multiValued="false" indexed="true" required="true" stored="false"/>
+  <field name="notebook_id" type="string" multiValued="false" indexed="true" required="true" stored="true"/>
+  <field name="notebook_atime" type="date" multiValued="false" indexed="true" required="true" stored="true"/>
+  <field name="notebook_mtime" type="date" multiValued="false" indexed="true" required="true" stored="true"/>
+  <field name="notebook_ctime" type="date" multiValued="false" indexed="true" required="true" stored="true"/>
+  <field name="notebook_owner" type="text_user" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="notebook_filename" type="string" multiValued="false" indexed="true" required="true" stored="true"/>
+  <field name="notebook_server" type="url" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="index" type="int" multiValued="false" indexed="true" required="true" stored="true"/>
+  <field name="cell_type" type="string" multiValued="false" indexed="true" required="true" stored="true"/>
+  <field name="execution_count" type="int" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="lc_cell_meme__current" type="text_meme" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="lc_cell_meme__next" type="text_meme" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="lc_cell_meme__previous" type="text_meme" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="lc_cell_memes__next__in_section" type="text_meme" multiValued="false" indexed="true" required="false" stored="false"/>
+  <field name="lc_cell_memes__previous__in_section" type="text_meme" multiValued="false" indexed="true" required="false" stored="false"/>
+  <field name="lc_cell_memes__next__in_notebook" type="text_meme" multiValued="false" indexed="true" required="false" stored="false"/>
+  <field name="lc_cell_memes__previous__in_notebook" type="text_meme" multiValued="false" indexed="true" required="false" stored="false"/>
+  <field name="lc_cell_meme__execution_end_time" type="date" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="estimated_mtime" type="date" multiValued="false" indexed="true" required="true" stored="true"/>
+  <field name="source__code" type="text_script" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="source__markdown" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="source__markdown__heading_1" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="source__markdown__heading_2" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="source__markdown__heading_3" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="source__markdown__heading_4" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="source__markdown__heading_5" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="source__markdown__heading_6" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="source__markdown__heading" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="source__markdown__link" type="text_ja" multiValued="false" indexed="true" required="false" stored="false"/>
+  <field name="source__markdown__url" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="source__markdown__code_inline" type="text_ja" multiValued="false" indexed="true" required="false" stored="false"/>
+  <field name="source__markdown__code_fence" type="text_ja" multiValued="false" indexed="true" required="false" stored="false"/>
+  <field name="source__markdown__code" type="text_ja" multiValued="false" indexed="true" required="false" stored="false"/>
+  <field name="source__markdown__emphasis_1" type="text_ja" multiValued="false" indexed="true" required="false" stored="false"/>
+  <field name="source__markdown__emphasis_2" type="text_ja" multiValued="false" indexed="true" required="false" stored="false"/>
+  <field name="source__markdown__emphasis" type="text_ja" multiValued="false" indexed="true" required="false" stored="false"/>
+  <field name="source__markdown__operation_note" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="source__markdown__todo" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="source__markdown__about" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="source" type="text_ja" multiValued="false" indexed="true" required="false" stored="false"/>
+  <field name="outputs__stdout" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="outputs__stderr" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="outputs__result_plain" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="outputs__result_html" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
+  <field name="outputs" type="text_ja" multiValued="false" indexed="true" required="false" stored="false"/>
+</schema>

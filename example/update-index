@@ -14,5 +14,5 @@ if [[ -f /home/$NB_USER/.nbsearch/config_local.py ]] ; then
     exit 0
 fi
 
-jupyter nbsearch update-index /home/$NB_USER/.jupyter/jupyter_notebook_config.py --debug local $file
+jupyter nbsearch update-index --debug /home/$NB_USER/.jupyter/jupyter_notebook_config.py local $file
 exit 0

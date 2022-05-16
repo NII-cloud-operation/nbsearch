@@ -1,4 +1,7 @@
 tornado
-motor
+requests
 traitlets
 python-dateutil
+aioboto3
+mistletoe
+pytz
