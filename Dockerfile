@@ -1,4 +1,4 @@
-FROM solr:latest AS solr
+FROM solr:8 AS solr
 
 FROM niicloudoperation/notebook:latest
 
