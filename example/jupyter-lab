@@ -4,4 +4,4 @@ set -xe
 
 /opt/nbsearch/bin/run-hook.sh
 
-/opt/nbsearch/original/bin/jupyterhub-singleuser $@
+/opt/nbsearch/original/bin/jupyter-lab $@
