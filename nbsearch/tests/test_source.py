@@ -4,6 +4,7 @@ import os
 import tempfile
 import time
 import pytz
+from unittest.mock import patch
 
 from nbsearch.source import LocalSource
 
@@ -216,3 +217,13 @@ test2/**
         assert _fromisoformat(files[1]['atime']) < current_time + timedelta(hours=1)
 
         assert source.get_notebook('http://test/server', 'test1/ignore.ipynb') == {}
+
+@patch('nbsearch.source.os.listdir')
+def test_get_files_with_permission_error(mock_listdir):
+    mock_listdir.side_effect = PermissionError()
+
+    source = LocalSource()
+    source.server = 'http://test/server'
+    source.base_dir = '/no_permissions'
+
+    assert list(source.get_files()) == []
