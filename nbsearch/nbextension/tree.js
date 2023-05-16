@@ -17,6 +17,8 @@ define([
     const log_prefix = '[' + mod_name + ']';
     const tab_id = 'nbsearch';
 
+    const NBSEARCH_TMP = 'nbsearch-tmp';
+
     let last_query = {};
     let base_href = null;
     let diff_selected = {};
@@ -117,7 +119,7 @@ define([
             .addClass('btn btn-link nbsearch-import')
             .attr('title', 'Open Notebook');
         button.click(() => {
-            download_notebook('/nbsearch-tmp', notebook, loading_indicator);
+            download_notebook(`/${NBSEARCH_TMP}`, notebook, loading_indicator);
         });
         const download = $('<button></button>')
             .addClass('btn btn-link nbsearch-import')
@@ -138,6 +140,16 @@ define([
             .append(loading_indicator);
     }
 
+    function render_notebook_server(notebook) {
+        const div = $('<div></div>')
+            .text(notebook['server'] || notebook['signature_server_url']);
+        const path = notebook['signature_notebook_path'];
+        if (!path) {
+            return div;
+        }
+        return div.attr('title', path);
+    }
+
     function render_notebook_results(data) {
         $('#nbsearch-loading').hide();
         const tbody = $('#nbsearch-result');
@@ -152,7 +164,7 @@ define([
                 .attr('title', notebook['source__markdown__operation_note'] || '');
             const tr = $('<tr></tr>')
                 .append($('<td></td>').append(create_link(notebook)))
-                .append($('<td></td>').text(notebook['server'] || notebook['signature_server_url']))
+                .append($('<td></td>').append(render_notebook_server(notebook)))
                 .append($('<td></td>').text(notebook['owner']))
                 .append($('<td></td>').text(notebook['mtime']))
                 .append($('<td></td>').text(notebook['lc_cell_meme__execution_end_time']))
@@ -243,13 +255,13 @@ define([
         diff_button.click(() => {
             const notebooks = Object.entries(diff_selected).filter(v => v[1] !== null).map(v => v[1]);
             const promises = notebooks.map(notebook => {
-                return prepare_notebook('/nbsearch-tmp', notebook);
+                return prepare_notebook(`/${NBSEARCH_TMP}`, notebook);
             });
             Promise.all(promises)
                 .then(values => {
                     // Open Diff
                     values.forEach((status, index) => {
-                        $(`#diff-file${index}`).val(`nbsearch-tmp/${status.filename}`);
+                        $(`#diff-file${index}`).val(`${NBSEARCH_TMP}/${status.filename}`);
                     });
                     $('a[href="#notebook_diff"]').click();
                     setTimeout(() => {

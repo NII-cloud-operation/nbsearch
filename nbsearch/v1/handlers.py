@@ -1,11 +1,15 @@
 from datetime import datetime
 import json
 import os
+from stat import S_IREAD
 
 from tornado import gen
 import tornado.escape
 import tornado.ioloop
 import tornado.web
+
+
+NBSEARCH_TMP = 'nbsearch-tmp'
 
 
 class SearchHandler(tornado.web.RequestHandler):
@@ -87,9 +91,14 @@ class ImportHandler(tornado.web.RequestHandler):
             raise tornado.web.HTTPError(400)
         path = path if path is not None else '.'
         filename = self._unique_filename(path, filename)
-        if path == 'nbsearch-tmp':
-            os.makedirs(os.path.join(self.base_dir, 'nbsearch-tmp'),
+        to_tmp = False
+        if path == NBSEARCH_TMP:
+            os.makedirs(os.path.join(self.base_dir, NBSEARCH_TMP),
                         exist_ok=True)
-        with open(os.path.join(self.base_dir, path, filename), 'wb') as f:
+            to_tmp = True
+        full_path = os.path.join(self.base_dir, path, filename)
+        with open(full_path, 'wb') as f:
             await self.db.download_file(id, f)
+        if to_tmp:
+            os.chmod(full_path, S_IREAD)
         self.write({'filename': filename})
