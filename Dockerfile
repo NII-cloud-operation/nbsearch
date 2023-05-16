@@ -43,11 +43,16 @@ RUN mkdir -p /usr/local/bin/before-notebook.d && \
 
 # Boot scripts to perform /usr/local/bin/before-notebook.d/* on JupyterHub
 RUN mkdir -p /opt/nbsearch/original/bin/ && \
+    mkdir -p /opt/nbsearch/bin/ && \
     mv /opt/conda/bin/jupyterhub-singleuser /opt/nbsearch/original/bin/jupyterhub-singleuser && \
     mv /opt/conda/bin/jupyter-notebook /opt/nbsearch/original/bin/jupyter-notebook && \
+    mv /opt/conda/bin/jupyter-lab /opt/nbsearch/original/bin/jupyter-lab && \
     cp /tmp/nbsearch/example/jupyterhub-singleuser /opt/conda/bin/ && \
     cp /tmp/nbsearch/example/jupyter-notebook /opt/conda/bin/ && \
-    chmod +x /opt/conda/bin/jupyterhub-singleuser /opt/conda/bin/jupyter-notebook
+    cp /tmp/nbsearch/example/jupyter-lab /opt/conda/bin/ && \
+    cp /tmp/nbsearch/example/run-hook.sh /opt/nbsearch/bin/ && \
+    chmod +x /opt/conda/bin/jupyterhub-singleuser /opt/conda/bin/jupyter-notebook /opt/conda/bin/jupyter-lab \
+        /opt/nbsearch/bin/run-hook.sh
 
 # Configuration for Server Proxy
 RUN cat /tmp/nbsearch/example/jupyter_notebook_config.py >> $CONDA_DIR/etc/jupyter/jupyter_notebook_config.py
