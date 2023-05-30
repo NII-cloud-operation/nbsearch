@@ -3,7 +3,8 @@ import json
 import os
 from stat import S_IREAD
 
-from tornado import gen
+from jupyter_server.base.handlers import APIHandler
+from tornado import web
 import tornado.escape
 import tornado.ioloop
 import tornado.web
@@ -12,10 +13,11 @@ import tornado.web
 NBSEARCH_TMP = 'nbsearch-tmp'
 
 
-class SearchHandler(tornado.web.RequestHandler):
+class SearchHandler(APIHandler):
     def initialize(self, db, base_dir):
         self.db = db
 
+    @web.authenticated
     async def get(self, target):
         start, limit = self._get_page()
         sort = self.get_query_argument('sort', None)
@@ -47,7 +49,7 @@ class SearchHandler(tornado.web.RequestHandler):
         return int(start), int(limit)
 
 
-class ImportHandler(tornado.web.RequestHandler):
+class ImportHandler(APIHandler):
     def initialize(self, db, base_dir):
         self.db = db
         self.base_dir = base_dir
@@ -73,6 +75,7 @@ class ImportHandler(tornado.web.RequestHandler):
             alt_filename = '{} ({}){}'.format(base_filename, index, ext)
         return alt_filename
 
+    @web.authenticated
     async def get(self, path, id):
         solrquery, result = await self.db.query(
             'jupyter-notebook',
