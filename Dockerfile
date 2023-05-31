@@ -54,6 +54,11 @@ RUN mkdir -p /opt/nbsearch/original/bin/ && \
     chmod +x /opt/conda/bin/jupyterhub-singleuser /opt/conda/bin/jupyter-notebook /opt/conda/bin/jupyter-lab \
         /opt/nbsearch/bin/run-hook.sh
 
+RUN jupyter nbclassic-extension install --py --sys-prefix nbsearch && \
+    jupyter nbclassic-serverextension enable --py --sys-prefix nbsearch && \
+    jupyter nbclassic-extension enable --py --sys-prefix nbsearch && \
+    jupyter nbclassic-extension enable --py --sys-prefix lc_notebook_diff
+
 # Configuration for Server Proxy
 RUN cat /tmp/nbsearch/example/jupyter_notebook_config.py >> $CONDA_DIR/etc/jupyter/jupyter_notebook_config.py
 
@@ -69,11 +74,5 @@ RUN mkdir /home/$NB_USER/.nbsearch/conf.d && \
 # Create Solr schema
 RUN precreate-core jupyter-notebook /opt/nbsearch/solr/jupyter-notebook/ && \
     precreate-core jupyter-cell /opt/nbsearch/solr/jupyter-cell/
-
-RUN jupyter nbextensions_configurator enable --user && \
-    jupyter nbextension install --py --user nbsearch && \
-    jupyter serverextension enable --py --user nbsearch && \
-    jupyter nbextension enable --py --user nbsearch && \
-    jupyter nbextension enable --py --user lc_notebook_diff
 
 VOLUME /var/solr /var/minio
