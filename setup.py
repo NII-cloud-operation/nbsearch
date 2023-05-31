@@ -18,6 +18,7 @@ setup_args = dict(name='nbsearch',
       zip_safe=False,
       platforms=['Jupyter Notebook 6.x'],
       install_requires=[
+          'notebook>=6.5.4',
           'tornado',
           'requests',
           'traitlets',
