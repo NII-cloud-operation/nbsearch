@@ -31,8 +31,9 @@ RUN mkdir -p /opt/minio/bin/ && \
     chmod +x /opt/minio/bin/minio && mkdir -p /var/minio && chown jovyan:users -R /var/minio
 
 COPY . /tmp/nbsearch
-RUN pip install -e /tmp/nbsearch jupyter_nbextensions_configurator jupyter-server-proxy && \
-    jupyter serverextension enable --sys-prefix jupyter_server_proxy && \
+RUN pip install -e /tmp/nbsearch && \
+    pip install 'notebook>=7' jupyter_nbextensions_configurator jupyter-server-proxy && \
+    jupyter server extension enable --sys-prefix jupyter_server_proxy && \
     jupyter labextension develop /tmp/nbsearch --overwrite && \
     jupyter server extension enable nbsearch
 RUN mkdir -p /usr/local/bin/before-notebook.d && \
