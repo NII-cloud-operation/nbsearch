@@ -31,8 +31,10 @@ RUN mkdir -p /opt/minio/bin/ && \
     chmod +x /opt/minio/bin/minio && mkdir -p /var/minio && chown jovyan:users -R /var/minio
 
 COPY . /tmp/nbsearch
-RUN pip install /tmp/nbsearch jupyter_nbextensions_configurator jupyter-server-proxy && \
-    jupyter serverextension enable --sys-prefix jupyter_server_proxy
+RUN pip install -e /tmp/nbsearch jupyter_nbextensions_configurator jupyter-server-proxy && \
+    jupyter serverextension enable --sys-prefix jupyter_server_proxy && \
+    jupyter labextension develop /tmp/nbsearch --overwrite && \
+    jupyter server extension enable nbsearch
 RUN mkdir -p /usr/local/bin/before-notebook.d && \
     cp /tmp/nbsearch/example/*.sh /usr/local/bin/before-notebook.d/ && \
     chmod +x /usr/local/bin/before-notebook.d/*.sh && \
@@ -74,5 +76,7 @@ RUN mkdir /home/$NB_USER/.nbsearch/conf.d && \
 # Create Solr schema
 RUN precreate-core jupyter-notebook /opt/nbsearch/solr/jupyter-notebook/ && \
     precreate-core jupyter-cell /opt/nbsearch/solr/jupyter-cell/
+
+ENV DOCKER_STACKS_JUPYTER_CMD=lab
 
 VOLUME /var/solr /var/minio
