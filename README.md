@@ -1,31 +1,40 @@
-# nbsearch [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/NII-cloud-operation/nbsearch/HEAD?urlpath=tree)
+# nbsearch
 
-nbsearch extension provides search capabilities for Jupyter Notebooks, which you created. It supports search by MEME in addition to search by keywords and modified times like a search engine. Therefore, users can easily find cells of the same origin in sticky notes added by sidestickies.
+[![Github Actions Status](https://github.com/NII-cloud-operation/nbsearch//workflows/Build/badge.svg)](https://github.com/NII-cloud-operation/nbsearch//actions/workflows/build.yml)[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/NII-cloud-operation/nbsearch//main?urlpath=lab)
+NBSearch Jupyter Extension
 
-## Prerequisite
+## Requirements
 
-Jupyter Notebook 6.x
+- JupyterLab >= 4.0.0
 
-## Installation
+## Install
 
-```
-$ pip install git+https://github.com/NII-cloud-operation/nbsearch
+To install the extension, execute:
+
+*TBD*
+
+```bash
+pip install git+https://github.com/NII-cloud-operation/nbsearch
 ```
 
 To use nbsearch extension, you will also need to install and enable. You can use Jupyter subcommand:
 
+*TBD*
+
 ```
-$ jupyter nbextension install --py nbsearch
-$ jupyter serverextension enable --py nbsearch
-$ jupyter nbextension enable --py nbsearch
+jupyter nbextension install --py nbsearch
+jupyter serverextension enable --py nbsearch
+jupyter nbextension enable --py nbsearch
 ```
 
 To compare multiple Notebooks, you need to install [Jupyter-LC_notebook_diff](https://github.com/NII-cloud-operation/Jupyter-LC_notebook_diff), as shown below.
 
+*TBD*
+
 ```
-$ pip install git+https://github.com/NII-cloud-operation/Jupyter-LC_notebook_diff
-$ jupyter nbextension install --py lc_notebook_diff
-$ jupyter nbextension enable --py lc_notebook_diff
+pip install git+https://github.com/NII-cloud-operation/Jupyter-LC_notebook_diff
+jupyter nbextension install --py lc_notebook_diff
+jupyter nbextension enable --py lc_notebook_diff
 ```
 
 then restart Jupyter notebook.
@@ -83,7 +92,7 @@ c.LocalSource.server = 'http://localhost:8888/'
 To make all your current notebooks searchable, run the following command. When you run this command, a collection for retrieval is prepared on the Solr.
 
 ```
-$ jupyter nbsearch update-index $CONDA_DIR/etc/jupyter/jupyter_notebook_config.py --debug local
+jupyter nbsearch update-index $CONDA_DIR/etc/jupyter/jupyter_notebook_config.py --debug local
 ```
 
 ### Search for Notebooks
@@ -99,3 +108,84 @@ To search the Cell, you can use the NBSearch search button.
 The NBSearch pane allows searching of cells. You can search for preceding and subsequent cells using MEME and add it to the current Notebook.
 
 ![NBSearch pane](./images/search-cell.gif)
+
+## Uninstall
+
+To remove the extension, execute:
+
+```bash
+pip uninstall nbsearch
+```
+
+## Contributing
+
+### Development install
+
+Note: You will need NodeJS to build the extension package.
+
+The `jlpm` command is JupyterLab's pinned version of
+[yarn](https://yarnpkg.com/) that is installed with JupyterLab. You may use
+`yarn` or `npm` in lieu of `jlpm` below.
+
+```bash
+# Clone the repo to your local environment
+# Change directory to the nbsearch directory
+# Install package in development mode
+pip install -e "."
+# Link your development version of the extension with JupyterLab
+jupyter labextension develop . --overwrite
+jupyter server extension enable nbsearch
+# Rebuild extension Typescript source after making changes
+jlpm build
+```
+
+You can watch the source directory and run JupyterLab at the same time in different terminals to watch for changes in the extension's source and automatically rebuild the extension.
+
+```bash
+# Watch the source directory in one terminal, automatically rebuilding when needed
+jlpm watch
+# Run JupyterLab in another terminal
+jupyter lab
+```
+
+With the watch command running, every saved change will immediately be built locally and available in your running JupyterLab. Refresh JupyterLab to load the change in your browser (you may need to wait several seconds for the extension to be rebuilt).
+
+By default, the `jlpm build` command generates the source maps for this extension to make it easier to debug using the browser dev tools. To also generate source maps for the JupyterLab core extensions, you can run the following command:
+
+```bash
+jupyter lab build --minimize=False
+```
+
+### Development uninstall
+
+```bash
+pip uninstall nbsearch
+```
+
+In development mode, you will also need to remove the symlink created by `jupyter labextension develop`
+command. To find its location, you can run `jupyter labextension list` to figure out where the `labextensions`
+folder is located. Then you can remove the symlink named `nbsearch` within that folder.
+
+### Testing the extension
+
+#### Frontend tests
+
+This extension is using [Jest](https://jestjs.io/) for JavaScript code testing.
+
+To execute them, execute:
+
+```sh
+jlpm
+jlpm test
+```
+
+#### Integration tests
+
+This extension uses [Playwright](https://playwright.dev/docs/intro) for the integration tests (aka user level tests).
+More precisely, the JupyterLab helper [Galata](https://github.com/jupyterlab/jupyterlab/tree/master/galata) is used to handle testing the extension in JupyterLab.
+
+More information are provided within the [ui-tests](./ui-tests/README.md) README.
+
+### Packaging the extension
+
+See [RELEASE](RELEASE.md)
