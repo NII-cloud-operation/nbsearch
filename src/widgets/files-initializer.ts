@@ -1,9 +1,7 @@
 import { JupyterFrontEnd } from '@jupyterlab/application';
 import { Widget, TabPanel } from '@lumino/widgets';
 
-
 type WidgetFactory = (withLabel: boolean) => Widget;
-
 
 export class FilesInitializer {
   widgetFactory: WidgetFactory;

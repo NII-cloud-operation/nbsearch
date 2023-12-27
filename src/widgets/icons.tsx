@@ -2,11 +2,9 @@ import { LabIcon } from '@jupyterlab/ui-components';
 
 import { faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
 
-
 type Icon = {
   icon: any[];
 };
-
 
 function extractSvgString(icon: Icon): string {
   const path = icon.icon[4];
@@ -17,8 +15,7 @@ function extractSvgString(icon: Icon): string {
 </svg>`;
 }
 
-
 export const searchIcon = new LabIcon({
   name: 'nbsearch::notebooksearch',
-  svgstr: extractSvgString(faMagnifyingGlass),
+  svgstr: extractSvgString(faMagnifyingGlass)
 });

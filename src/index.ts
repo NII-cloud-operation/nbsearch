@@ -9,14 +9,13 @@ import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { FilesInitializer } from './widgets/files-initializer';
 import { buildWidget } from './widgets/search-widget';
 
-
 function initWidgets(
   app: JupyterFrontEnd,
   documents: IDocumentManager,
-  settings: ISettingRegistry.ISettings,
+  settings: ISettingRegistry.ISettings
 ) {
-  const initializer = new FilesInitializer(
-    (withLabel: boolean) => buildWidget(documents, withLabel),
+  const initializer = new FilesInitializer((withLabel: boolean) =>
+    buildWidget(documents, withLabel)
   );
   initializer.start(app);
 }
@@ -32,7 +31,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
   activate: (
     app: JupyterFrontEnd,
     settingRegistry: ISettingRegistry | null,
-    documents: IDocumentManager | null,
+    documents: IDocumentManager | null
   ) => {
     console.log('JupyterLab extension nbsearch is activated!');
     if (settingRegistry) {
