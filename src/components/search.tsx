@@ -1,11 +1,14 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Box, Button, TableContainer } from '@mui/material';
 
-import { Query } from './query';
-import { ResultEntity } from './result';
-import { Results, SortQuery } from './results';
+import { ResultEntity } from './result/result';
+import { Results, SortQuery } from './result/results';
 import { Page } from './page';
 import { PageQuery } from './page-control';
+import { SolrQuery } from './query/base';
+import { ResultColumn } from './result/results';
+
+const COLUMN_MAX_LENGTH = 32;
 
 export type SearchError = {
   message: string;
@@ -15,11 +18,18 @@ export type SearchQuery = {
   queryString: string;
   sortQuery?: SortQuery;
   pageQuery?: PageQuery;
+  q_op?: string;
 };
 
 export type SearchProps = {
+  columns: ResultColumn[];
   onSearch?: (query: SearchQuery) => void;
   onResultSelect?: (result: ResultEntity) => void;
+  defaultQuery: SolrQuery;
+  queryFactory: (
+    onChange: (query: SolrQuery) => void
+  ) => React.ReactNode | null;
+  readyToSearch?: boolean;
   start?: number;
   limit?: number;
   numFound?: number;
@@ -27,81 +37,72 @@ export type SearchProps = {
   error?: SearchError;
 };
 
-function getSearchQuery(
-  lastQuery: SearchQuery | null,
-  queryString?: string
-): SearchQuery | null {
-  if (!queryString) {
-    return lastQuery;
-  }
-  if (!lastQuery) {
-    return {
-      queryString: queryString || ''
-    };
-  }
-  return Object.assign({}, lastQuery, {
-    queryString: queryString || ''
-  });
-}
+export function Search({
+  columns,
+  onSearch,
+  onResultSelect,
+  start,
+  limit,
+  numFound,
+  results,
+  error,
+  readyToSearch,
+  defaultQuery,
+  queryFactory
+}: SearchProps): JSX.Element {
+  const [solrQuery, setSolrQuery] = useState<SolrQuery | null>(null);
+  const [sortQuery, setSortQuery] = useState<SortQuery | null>(null);
+  const [pageQuery, setPageQuery] = useState<PageQuery | null>(null);
+  const searchQuery = useMemo(() => {
+    const r: SearchQuery = Object.assign(
+      {},
+      solrQuery !== null ? solrQuery : defaultQuery
+    );
+    if (sortQuery) {
+      r.sortQuery = sortQuery;
+    }
+    if (pageQuery) {
+      r.pageQuery = pageQuery;
+    }
+    return r;
+  }, [solrQuery, sortQuery, pageQuery, defaultQuery]);
 
-export function Search(props: SearchProps): JSX.Element {
-  const { onSearch, onResultSelect, start, limit, numFound, results, error } =
-    props;
-  const [solrQuery, setSolrQuery] = useState<string | null>('_text_: *');
-  const [searchQuery, setSearchQuery] = useState<SearchQuery | null>(null);
-
-  const solrQueryChanged = useCallback((query: string | null) => {
+  const solrQueryChanged = useCallback((query: SolrQuery) => {
     setSolrQuery(query);
   }, []);
   const clicked = useCallback(() => {
-    const query = getSearchQuery(searchQuery, solrQuery || '');
-    setSearchQuery(query);
-    if (query === null) {
-      return;
-    }
     if (!onSearch) {
       return;
     }
-    onSearch(query);
-  }, [solrQuery, onSearch]);
+    onSearch(searchQuery);
+  }, [onSearch, searchQuery]);
   const sorted = useCallback(
     (sortQuery: SortQuery) => {
-      const query = getSearchQuery(searchQuery);
-      if (query === null) {
-        return;
-      }
-      const newQuery: SearchQuery = Object.assign(query, {
-        sortQuery
-      });
-      setSearchQuery(newQuery);
+      setSortQuery(sortQuery);
+      const newQuery = Object.assign({}, searchQuery, { sortQuery });
       if (!onSearch) {
         return;
       }
       onSearch(newQuery);
     },
-    [onSearch]
+    [searchQuery, onSearch]
   );
   const pageChanged = useCallback(
     (pageQuery: PageQuery) => {
-      const query = getSearchQuery(searchQuery);
-      if (query === null) {
-        return;
-      }
-      const newQuery: SearchQuery = Object.assign(query, {
-        pageQuery
-      });
-      setSearchQuery(newQuery);
+      setPageQuery(pageQuery);
+      const newQuery = Object.assign({}, searchQuery, { pageQuery });
       if (!onSearch) {
         return;
       }
       onSearch(newQuery);
     },
-    [onSearch]
+    [searchQuery, onSearch]
   );
+
   return (
     <Box sx={{ padding: '1em' }}>
-      <Query onChange={solrQueryChanged} />
-      <Button onClick={clicked} disabled={solrQuery === null}>
+      {queryFactory(solrQueryChanged)}
+      <Button onClick={clicked} disabled={readyToSearch === false}>
         Search
       </Button>
       {error && <strong>{error.message}</strong>}
@@ -113,9 +114,11 @@ export function Search(props: SearchProps): JSX.Element {
       >
         <TableContainer>
           <Results
+            columns={columns}
             onColumnSort={sorted}
             onResultSelect={onResultSelect}
             data={results}
+            maxLength={COLUMN_MAX_LENGTH}
           />
         </TableContainer>
       </Page>

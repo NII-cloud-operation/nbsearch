@@ -18,10 +18,10 @@ import {
   Result
 } from './result';
 
-type Column = {
+export type ResultColumn = {
   id: IndexedColumnId;
   label: string;
-  value: StoredColumnId;
+  value: StoredColumnId | StoredColumnId[];
 };
 
 export enum SortOrder {
@@ -34,52 +34,16 @@ export type SortQuery = {
   order: SortOrder;
 };
 
-const COLUMNS: Column[] = [
-  {
-    id: IndexedColumnId.Path,
-    label: 'Path',
-    value: 'filename'
-  },
-  {
-    id: IndexedColumnId.Server,
-    label: 'Server',
-    value: 'signature_server_url'
-  },
-  {
-    id: IndexedColumnId.Owner,
-    label: 'Owner',
-    value: 'owner'
-  },
-  {
-    id: IndexedColumnId.Modified,
-    label: 'Modified',
-    value: 'mtime'
-  },
-  {
-    id: IndexedColumnId.Executed,
-    label: 'Executed',
-    value: 'lc_cell_meme__execution_end_time'
-  },
-  {
-    id: IndexedColumnId.OperationNote,
-    label: 'Operation Note',
-    value: 'source__markdown__operation_note'
-  },
-  {
-    id: IndexedColumnId.NumberOfHeaders,
-    label: '# of Headers',
-    value: 'source__markdown__heading_count'
-  }
-];
-
 export type ResultsProps = {
   data?: ResultEntity[];
+  columns: ResultColumn[];
   onColumnSort?: (key: SortQuery) => void;
   onResultSelect?: (data: ResultEntity) => void;
+  maxLength?: number;
 };
 
 function renderColumn(
-  column: Column,
+  column: ResultColumn,
   sortHandler: (key: SortQuery) => void,
   sortQuery: SortQuery | null
 ) {
@@ -114,8 +78,13 @@ function renderColumn(
   );
 }
 
-export function Results(props: ResultsProps) {
-  const { data, onColumnSort, onResultSelect } = props;
+export function Results({
+  columns,
+  data,
+  onColumnSort,
+  onResultSelect,
+  maxLength
+}: ResultsProps) {
   if (!data || data.length === 0) {
     return <Typography>No results</Typography>;
   }
@@ -136,7 +105,7 @@ export function Results(props: ResultsProps) {
     <Table>
       <TableHead>
         <TableRow>
-          {COLUMNS.map(column => (
+          {columns.map(column => (
             <TableCell>{renderColumn(column, sorted, sortQuery)}</TableCell>
           ))}
         </TableRow>
@@ -145,8 +114,9 @@ export function Results(props: ResultsProps) {
         {data.map(result => (
           <Result
             onSelect={onResultSelect}
-            columns={COLUMNS.map(c => c.value)}
+            columns={columns.map(c => c.value)}
             data={result}
+            maxLength={maxLength}
           />
         ))}
       </TableBody>

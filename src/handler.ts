@@ -31,11 +31,7 @@ export async function requestAPI<T>(
   let data: any = await response.text();
 
   if (data.length > 0) {
-    try {
-      data = JSON.parse(data);
-    } catch (error) {
-      console.log('Not a JSON response body.', response);
-    }
+    data = JSON.parse(data);
   }
 
   if (!response.ok) {

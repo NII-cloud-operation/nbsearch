@@ -11,7 +11,8 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-import { IndexedColumnId } from './result';
+import { IndexedColumnId } from '../result/result';
+import { SolrQuery } from './base';
 
 export enum Composition {
   And = 'AND',
@@ -96,7 +97,7 @@ export type CompositeQuery = {
 };
 
 export type FieldsQueryProps = {
-  onChange?: (query: CompositeQuery) => void;
+  onChange?: (query: SolrQuery) => void;
 };
 
 export function FieldsQuery(props: FieldsQueryProps): JSX.Element {
@@ -108,6 +109,21 @@ export function FieldsQuery(props: FieldsQueryProps): JSX.Element {
       query: '*'
     }
   ]);
+  const notifyQueryChange = useCallback(
+    (newQueries: FieldQuery[], composition: Composition) => {
+      const solrQuery = newQueries
+        .map(field => `${field.target}:${field.query}`)
+        .join(` ${composition} `);
+      if (!onChange) {
+        return;
+      }
+      onChange({
+        queryString: solrQuery
+      });
+    },
+    [onChange]
+  );
+
   const updateFieldQueriesTarget = useCallback(
     (index: number, target: IndexedColumnId) => {
       const newQueries: FieldQuery[] = fieldQueries.map(q =>
@@ -115,13 +131,7 @@ export function FieldsQuery(props: FieldsQueryProps): JSX.Element {
       );
       newQueries[index].target = target;
       setFieldQueries(newQueries);
-      if (!onChange) {
-        return;
-      }
-      onChange({
-        composition,
-        fields: newQueries
-      });
+      notifyQueryChange(newQueries, composition);
     },
     [fieldQueries, composition]
   );
@@ -132,13 +142,7 @@ export function FieldsQuery(props: FieldsQueryProps): JSX.Element {
       );
       newQueries[index].query = value;
       setFieldQueries(newQueries);
-      if (!onChange) {
-        return;
-      }
-      onChange({
-        composition,
-        fields: newQueries
-      });
+      notifyQueryChange(newQueries, composition);
     },
     [fieldQueries, composition]
   );
@@ -149,13 +153,7 @@ export function FieldsQuery(props: FieldsQueryProps): JSX.Element {
       );
       const removedQueries = newQueries.splice(index, 1);
       setFieldQueries(removedQueries);
-      if (!onChange) {
-        return;
-      }
-      onChange({
-        composition,
-        fields: removedQueries
-      });
+      notifyQueryChange(removedQueries, composition);
     },
     [fieldQueries, composition]
   );
@@ -168,25 +166,13 @@ export function FieldsQuery(props: FieldsQueryProps): JSX.Element {
       query: '*'
     });
     setFieldQueries(newQueries);
-    if (!onChange) {
-      return;
-    }
-    onChange({
-      composition,
-      fields: newQueries
-    });
+    notifyQueryChange(newQueries, composition);
   }, [fieldQueries, composition]);
   const compositionChanged = useCallback(
     (event: SelectChangeEvent) => {
       const changed = event.target.value as Composition;
       setComposition(changed);
-      if (!onChange) {
-        return;
-      }
-      onChange({
-        composition: changed,
-        fields: fieldQueries
-      });
+      notifyQueryChange(fieldQueries, changed);
     },
     [fieldQueries]
   );

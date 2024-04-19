@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from 'react';
 import { Box, Tabs, Tab } from '@mui/material';
 
-import { SolrQuery } from './solr-query';
-import { CompositeQuery, FieldsQuery } from './fields-query';
+import { FieldsQuery } from './fields';
+import { SolrQuery } from './base';
+import { RawSolrQuery } from './solr';
 
 enum TabIndex {
   Fields,
@@ -10,7 +11,7 @@ enum TabIndex {
 }
 
 export type QueryProps = {
-  onChange?: (query: string | null) => void;
+  onChange?: (query: SolrQuery) => void;
 };
 
 type TabPanelProps = {
@@ -35,12 +36,17 @@ function TabPanel(props: TabPanelProps): JSX.Element {
 
 export function Query(props: QueryProps): JSX.Element {
   const { onChange } = props;
-  const [solrQuery, setSolrQuery] = useState<string | undefined>('_text_: *');
+  const [solrQuery, setSolrQuery] = useState<SolrQuery>({
+    queryString: '_text_:*'
+  });
+  const [fieldsQuery, setFieldsQuery] = useState<SolrQuery>({
+    queryString: '_text_:*'
+  });
   const [tabIndex, setTabIndex] = useState<TabIndex>(TabIndex.Fields);
 
   const solrChanged = useCallback(
-    (query: string | null) => {
-      setSolrQuery(query || undefined);
+    (query: SolrQuery) => {
+      setSolrQuery(query);
       if (!onChange) {
         return;
       }
@@ -49,28 +55,30 @@ export function Query(props: QueryProps): JSX.Element {
     [onChange]
   );
   const fieldsChanged = useCallback(
-    (query: CompositeQuery) => {
-      const solrQuery = query.fields
-        .map(field => `${field.target}: ${field.query}`)
-        .join(` ${query.composition} `);
-      console.log('TEST', solrQuery);
-      setSolrQuery(solrQuery);
+    (query: SolrQuery) => {
+      setFieldsQuery(query);
       if (!onChange) {
         return;
       }
-      onChange(solrQuery);
+      onChange(query);
     },
     [onChange]
+  );
+  const tabChanged = useCallback(
+    (event: React.SyntheticEvent, tabIndex: any) => {
+      const index = tabIndex as TabIndex;
+      setTabIndex(index);
+      if (!onChange) {
+        return;
+      }
+      onChange(index === TabIndex.Fields ? fieldsQuery : solrQuery);
+    },
+    [fieldsQuery, solrQuery, onChange]
   );
 
   return (
     <Box>
-      <Tabs
-        value={tabIndex}
-        onChange={(event: React.SyntheticEvent, tabIndex: any) =>
-          setTabIndex(tabIndex as TabIndex)
-        }
-      >
+      <Tabs value={tabIndex} onChange={tabChanged}>
         <Tab
           value={TabIndex.Fields}
           label="Search by fields"
@@ -88,7 +96,7 @@ export function Query(props: QueryProps): JSX.Element {
         <FieldsQuery onChange={fieldsChanged} />
       </TabPanel>
       <TabPanel id={TabIndex.Solr} value={tabIndex}>
-        <SolrQuery onChange={solrChanged} query={solrQuery} />
+        <RawSolrQuery onChange={solrChanged} query={solrQuery.queryString} />
       </TabPanel>
     </Box>
   );

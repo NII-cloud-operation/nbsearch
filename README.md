@@ -1,7 +1,8 @@
 # nbsearch
 
 [![Github Actions Status](https://github.com/NII-cloud-operation/nbsearch//workflows/Build/badge.svg)](https://github.com/NII-cloud-operation/nbsearch//actions/workflows/build.yml)[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/NII-cloud-operation/nbsearch//main?urlpath=lab)
-NBSearch Jupyter Extension
+
+nbsearch extension provides search capabilities for Jupyter Notebooks, which you created. It supports search by MEME in addition to search by keywords and modified times like a search engine. Therefore, users can easily find cells of the same origin in sticky notes added by sidestickies.
 
 ## Requirements
 

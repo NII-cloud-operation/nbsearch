@@ -1,12 +1,13 @@
 import React, { ChangeEvent, useCallback } from 'react';
 import { Box, TextField } from '@mui/material';
+import { SolrQuery } from './base';
 
-export type SolrQueryProps = {
+export type RawSolrQueryProps = {
   query?: string;
-  onChange?: (query: string | null) => void;
+  onChange?: (query: SolrQuery) => void;
 };
 
-export function SolrQuery(props: SolrQueryProps): JSX.Element {
+export function RawSolrQuery(props: RawSolrQueryProps): JSX.Element {
   const { query, onChange } = props;
   const changed = useCallback(
     (event: ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
@@ -15,10 +16,14 @@ export function SolrQuery(props: SolrQueryProps): JSX.Element {
       }
       const query = event.target.value.trim();
       if (!query) {
-        onChange(null);
+        onChange({
+          queryString: '_text_:*'
+        });
         return;
       }
-      onChange(query);
+      onChange({
+        queryString: query
+      });
     },
     [onChange]
   );
