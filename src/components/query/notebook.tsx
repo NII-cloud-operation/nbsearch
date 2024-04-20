@@ -4,6 +4,7 @@ import { Box, Tabs, Tab } from '@mui/material';
 import { FieldsQuery } from './fields';
 import { SolrQuery } from './base';
 import { RawSolrQuery } from './solr';
+import { IndexedColumnId } from '../result/result';
 
 enum TabIndex {
   Fields,
@@ -12,6 +13,7 @@ enum TabIndex {
 
 export type QueryProps = {
   onChange?: (query: SolrQuery) => void;
+  fields?: IndexedColumnId[];
 };
 
 type TabPanelProps = {
@@ -34,8 +36,7 @@ function TabPanel(props: TabPanelProps): JSX.Element {
   );
 }
 
-export function Query(props: QueryProps): JSX.Element {
-  const { onChange } = props;
+export function Query({ onChange, fields }: QueryProps): JSX.Element {
   const [solrQuery, setSolrQuery] = useState<SolrQuery>({
     queryString: '_text_:*'
   });
@@ -93,7 +94,7 @@ export function Query(props: QueryProps): JSX.Element {
         />
       </Tabs>
       <TabPanel id={TabIndex.Fields} value={tabIndex}>
-        <FieldsQuery onChange={fieldsChanged} />
+        <FieldsQuery fields={fields} onChange={fieldsChanged} />
       </TabPanel>
       <TabPanel id={TabIndex.Solr} value={tabIndex}>
         <RawSolrQuery onChange={solrChanged} query={solrQuery.queryString} />

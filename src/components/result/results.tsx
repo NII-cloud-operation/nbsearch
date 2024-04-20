@@ -102,7 +102,7 @@ export function Results({
   );
 
   return (
-    <Table>
+    <Table className="nbsearch-results-root">
       <TableHead>
         <TableRow>
           {columns.map(column => (

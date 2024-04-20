@@ -4,8 +4,9 @@ import { IDocumentManager } from '@jupyterlab/docmanager';
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { Cell, ICellModel } from '@jupyterlab/cells';
 
-import { Box } from '@mui/material';
+import { Box, ThemeProvider } from '@mui/material';
 
+import { theme } from '../themes/search';
 import { searchIcon } from './icons';
 import { Search, SearchError, SearchQuery } from '../components/search';
 import {
@@ -60,6 +61,15 @@ const resultColumns: ResultColumn[] = [
   }
 ];
 
+const searchFields: IndexedColumnId[] = resultColumns
+  .map(r => r.id)
+  .concat([
+    IndexedColumnId.Stdout,
+    IndexedColumnId.Stderr,
+    IndexedColumnId.ResultPlain,
+    IndexedColumnId.ResultHTML
+  ]);
+
 export function SearchWidget({
   documents,
   notebookTracker,
@@ -105,13 +115,14 @@ export function SearchWidget({
           targetCell={currentCell}
           location={currentCellLocation}
           onChange={onChange}
+          fields={searchFields}
         ></Query>
       );
     },
     [currentCell, currentCellLocation]
   );
-  const searched = useCallback(
-    (query: SearchQuery) => {
+  const searchHandler = useCallback(
+    (query: SearchQuery, finished: () => void) => {
       performSearch<CellSearchResponse>(SearchTarget.Cell, query)
         .then(results => {
           setError(undefined);
@@ -121,12 +132,14 @@ export function SearchWidget({
             limit: results.limit,
             numFound: results.numFound
           });
+          finished();
         })
         .catch(error => {
           setError(error);
+          finished();
         });
     },
-    [results]
+    []
   );
   const selected = useCallback(
     (result: ResultEntity) => {
@@ -159,33 +172,35 @@ export function SearchWidget({
     return <Box>Open a notebook to search</Box>;
   }
   return (
-    <Box sx={{ overflow: 'auto', height: '100%' }}>
-      <CellLocationSelector
-        targetCell={currentCell || undefined}
-        onSelected={location => setCurrentCellLocation(location)}
-        defaultLocation={CellLocation.CURRENT}
-      />
-      <Search
-        columns={resultColumns}
-        onSearch={searched}
-        onResultSelect={selected}
-        defaultQuery={
-          currentCell !== null
-            ? getSolrQueryFromCell(
-                currentCell,
-                CellSearchMode.ByMEME,
-                currentCellLocation
-              )
-            : { queryString: '_text_:*' }
-        }
-        queryFactory={queryFactory}
-        start={page?.start}
-        limit={page?.limit}
-        numFound={page?.numFound}
-        results={results}
-        error={error}
-      />
-    </Box>
+    <ThemeProvider theme={theme}>
+      <Box className="nbsearch-search-root">
+        <CellLocationSelector
+          targetCell={currentCell || undefined}
+          onSelected={location => setCurrentCellLocation(location)}
+          defaultLocation={CellLocation.CURRENT}
+        />
+        <Search
+          columns={resultColumns}
+          onSearch={searchHandler}
+          onResultSelect={selected}
+          defaultQuery={
+            currentCell !== null
+              ? getSolrQueryFromCell(
+                  currentCell,
+                  CellSearchMode.ByMEME,
+                  currentCellLocation
+                )
+              : { queryString: '_text_:*' }
+          }
+          queryFactory={queryFactory}
+          start={page?.start}
+          limit={page?.limit}
+          numFound={page?.numFound}
+          results={results}
+          error={error}
+        />
+      </Box>
+    </ThemeProvider>
   );
 }
 

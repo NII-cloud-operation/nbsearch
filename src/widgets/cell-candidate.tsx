@@ -3,6 +3,9 @@ import React from 'react';
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { Cell } from '@jupyterlab/cells';
 import { ReactWidget } from '@jupyterlab/ui-components';
+import { ThemeProvider } from '@mui/material';
+
+import { theme } from '../themes/search';
 import { ICellCandidateWidget } from '../extensions/cellmanager';
 import {
   CellCandidateOverlay,
@@ -31,13 +34,15 @@ class CellCandidateWidgetImpl implements ICellCandidateWidget {
       throw new Error('No notebook model');
     }
     this.widget = ReactWidget.create(
-      <CellCandidateOverlay
-        notebookTracker={notebookTracker}
-        notebook={notebook.content.model}
-        cell={cell}
-        resultChangedSignal={this.resultChangedSignal}
-        resultAppliedSignal={resultAppliedSignal}
-      />
+      <ThemeProvider theme={theme}>
+        <CellCandidateOverlay
+          notebookTracker={notebookTracker}
+          notebook={notebook.content.model}
+          cell={cell}
+          resultChangedSignal={this.resultChangedSignal}
+          resultAppliedSignal={resultAppliedSignal}
+        />
+      </ThemeProvider>
     );
     this.widget.addClass('nbsearch-cell-candidate');
   }

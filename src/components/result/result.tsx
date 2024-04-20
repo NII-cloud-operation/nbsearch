@@ -14,7 +14,19 @@ export enum IndexedColumnId {
   OperationNote = 'source__markdown__operation_note',
   NumberOfHeaders = 'source__markdown__heading_count',
   Source = 'source__markdown|source__code',
-  EstimatedModifiedTime = 'estimated_mtime'
+  EstimatedModifiedTime = 'estimated_mtime',
+  CurrentMeme = 'lc_notebook_meme__current',
+  SignatureNotebookPath = 'signature_notebook_path',
+  SourceCode = 'source__code',
+  SourceMarkdown = 'source__markdown',
+  SourceMarkdownTODO = 'source__markdown__todo',
+  SourceMarkdownHeading = 'source__markdown__heading',
+  SourceMarkdownURL = 'source__markdown__url',
+  SourceMarkdownCode = 'source__markdown__code',
+  Stdout = 'outputs__stdout',
+  Stderr = 'outputs__stderr',
+  ResultPlain = 'outputs__result_plain',
+  ResultHTML = 'outputs__result_html'
 }
 
 export type ResultEntity = {

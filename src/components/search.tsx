@@ -23,7 +23,7 @@ export type SearchQuery = {
 
 export type SearchProps = {
   columns: ResultColumn[];
-  onSearch?: (query: SearchQuery) => void;
+  onSearch?: (query: SearchQuery, finished: () => void) => void;
   onResultSelect?: (result: ResultEntity) => void;
   defaultQuery: SolrQuery;
   queryFactory: (
@@ -53,6 +53,7 @@ export function Search({
   const [solrQuery, setSolrQuery] = useState<SolrQuery | null>(null);
   const [sortQuery, setSortQuery] = useState<SortQuery | null>(null);
   const [pageQuery, setPageQuery] = useState<PageQuery | null>(null);
+  const [searching, setSearching] = useState<boolean>(false);
   const searchQuery = useMemo(() => {
     const r: SearchQuery = Object.assign(
       {},
@@ -70,20 +71,26 @@ export function Search({
   const solrQueryChanged = useCallback((query: SolrQuery) => {
     setSolrQuery(query);
   }, []);
+  const callSearch = useCallback(
+    (query: SearchQuery) => {
+      if (!onSearch) {
+        return;
+      }
+      setSearching(true);
+      onSearch(query, () => {
+        setSearching(false);
+      });
+    },
+    [onSearch]
+  );
   const clicked = useCallback(() => {
-    if (!onSearch) {
-      return;
-    }
-    onSearch(searchQuery);
-  }, [onSearch, searchQuery]);
+    callSearch(searchQuery);
+  }, [callSearch, searchQuery]);
   const sorted = useCallback(
     (sortQuery: SortQuery) => {
       setSortQuery(sortQuery);
       const newQuery = Object.assign({}, searchQuery, { sortQuery });
-      if (!onSearch) {
-        return;
-      }
-      onSearch(newQuery);
+      callSearch(newQuery);
     },
     [searchQuery, onSearch]
   );
@@ -91,20 +98,23 @@ export function Search({
     (pageQuery: PageQuery) => {
       setPageQuery(pageQuery);
       const newQuery = Object.assign({}, searchQuery, { pageQuery });
-      if (!onSearch) {
-        return;
-      }
-      onSearch(newQuery);
+      callSearch(newQuery);
     },
-    [searchQuery, onSearch]
+    [searchQuery, callSearch]
   );
 
   return (
     <Box sx={{ padding: '1em' }}>
       {queryFactory(solrQueryChanged)}
-      <Button onClick={clicked} disabled={readyToSearch === false}>
-        Search
-      </Button>
+      <Box className="nbsearch-search-execute">
+        <Button
+          variant="contained"
+          onClick={clicked}
+          disabled={readyToSearch === false || searching}
+        >
+          {!searching ? 'Search' : 'Searching...'}
+        </Button>
+      </Box>
       {error && <strong>{error.message}</strong>}
       <Page
         start={start}

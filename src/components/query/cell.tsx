@@ -16,6 +16,7 @@ import {
   getSearchQueryForLocation,
   CellLocationSearchQuery
 } from '../cell-location';
+import { IndexedColumnId } from '../result/result';
 
 enum TabIndex {
   Cell,
@@ -153,12 +154,14 @@ export type QueryProps = {
   targetCell: Cell;
   location: CellLocation;
   onChange?: (query: SolrQuery) => void;
+  fields?: IndexedColumnId[];
 };
 
 export function Query({
   onChange,
   targetCell,
-  location
+  location,
+  fields
 }: QueryProps): JSX.Element {
   const [solrQuery, setSolrQuery] = useState<SolrQuery>({
     queryString: '_text_:*'
@@ -253,7 +256,7 @@ export function Query({
         />
       </TabPanel>
       <TabPanel id={TabIndex.Fields} value={tabIndex}>
-        <FieldsQuery onChange={fieldsChanged} />
+        <FieldsQuery fields={fields} onChange={fieldsChanged} />
       </TabPanel>
       <TabPanel id={TabIndex.Solr} value={tabIndex}>
         <RawSolrQuery onChange={solrChanged} query={solrQuery.queryString} />

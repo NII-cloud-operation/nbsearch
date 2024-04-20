@@ -9,7 +9,7 @@ import {
 import { ISignal } from '@lumino/signaling';
 import { CellLocation, LCCellMemeMetadata } from '../cell-location';
 import { ResultEntity } from './result';
-import { CandidateView } from './candidate';
+import { CandidateView, CandidateViewMode } from './candidate';
 import { Box } from '@mui/material';
 import { showDiffDialog } from '../diff/dialog';
 
@@ -214,9 +214,15 @@ export function CellCandidateOverlay({
     <Box ref={viewRef}>
       {candidateContent && (
         <CandidateView
+          mode={
+            result?.location === CellLocation.CURRENT
+              ? CandidateViewMode.Update
+              : CandidateViewMode.Insert
+          }
           content={candidateContent}
           onDiffOpen={openDiff}
           onApply={apply}
+          onCancel={() => setResult(null)}
         />
       )}
     </Box>

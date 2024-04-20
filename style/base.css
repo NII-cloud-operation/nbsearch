@@ -4,6 +4,46 @@
     https://jupyterlab.readthedocs.io/en/stable/developer/css.html
 */
 
+.nbsearch-search-root {
+    overflow: auto;
+    height: 100%;
+}
+
+.nbsearch-search-root .MuiInputBase-input {
+    padding: 12.5px 10px;
+}
+
+.nbsearch-query-fields-value {
+    padding-top: 8px;
+}
+
+.nbsearch-query-fields-value button {
+    min-width: auto;
+}
+
+.nbsearch-query-fields-add {
+    padding-top: 8px;
+}
+
+.nbsearch-query-fields-add button {
+    min-width: auto;
+}
+
+.nbsearch-search-execute {
+    padding-top: 8px;
+    text-align: right;
+}
+
+.nbsearch-search-for {
+    padding: 8px;
+    display: flex;
+    align-items: center;
+}
+
+.nbsearch-search-for-label {
+    margin-right: 4%;
+}
+
 .nbsearch-cell-candidate {
     position: absolute;
     background-color: rgba(255, 255, 255, 0.9);
@@ -15,6 +55,27 @@
     margin: 32px;
 }
 
+.nbsearch-candidate-toolbar {
+    display: flex;
+    align-items: center;
+}
+
+.nbsearch-candidate-toolbar button {
+    display: flex;
+    align-items: center;
+    margin: 4px;
+}
+
+.nbsearch-candidate-cancel {
+    margin-left: auto !important;
+}
+
+.nbsearch-candidate-mode {
+    font-weight: bold;
+    color: #888;
+    margin-right: 16px;
+}
+
 .nbsearch-cell-candidate pre {
     /* https://stackoverflow.com/questions/248011/how-do-i-wrap-text-in-a-pre-tag */
     white-space: pre-wrap;       /* Since CSS 2.1 */
@@ -22,4 +83,8 @@
     white-space: -pre-wrap;      /* Opera 4-6 */
     white-space: -o-pre-wrap;    /* Opera 7 */
     word-wrap: break-word;       /* Internet Explorer 5.5+ */
+    background-color: #fff;
+    border: 1px solid #ccc;
+    padding: 8px;
+    border-radius: 4px;
 }

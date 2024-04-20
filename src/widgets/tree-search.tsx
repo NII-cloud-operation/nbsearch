@@ -3,8 +3,9 @@ import { ReactWidget } from '@jupyterlab/apputils';
 import { IDocumentManager } from '@jupyterlab/docmanager';
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 
-import { Box } from '@mui/material';
+import { Box, ThemeProvider } from '@mui/material';
 
+import { theme } from '../themes/search';
 import { searchIcon } from './icons';
 import { Search, SearchError, SearchQuery } from '../components/search';
 import { ResultEntity } from '../components/result/result';
@@ -61,6 +62,14 @@ const resultColumns: ResultColumn[] = [
   }
 ];
 
+const searchFields: IndexedColumnId[] = resultColumns
+  .map(r => r.id)
+  .concat([
+    IndexedColumnId.Cells,
+    IndexedColumnId.Outputs,
+    IndexedColumnId.CellMemes
+  ]);
+
 export function SearchWidget(props: SearchWidgetProps): JSX.Element {
   const { documents, notebookTracker } = props;
   const [results, setResults] = useState<ResultEntity[]>([]);
@@ -78,8 +87,8 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
     }
     return currentNotebookPanel.title.label;
   }, [currentNotebookPanel]);
-  const searched = useCallback(
-    (query: SearchQuery) => {
+  const searchHandler = useCallback(
+    (query: SearchQuery, finished: () => void) => {
       performSearch<NotebookSearchResponse>(SearchTarget.Notebook, query)
         .then(results => {
           setError(undefined);
@@ -89,12 +98,14 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
             limit: results.limit,
             numFound: results.numFound
           });
+          finished();
         })
         .catch(error => {
           setError(error);
+          finished();
         });
     },
-    [results]
+    []
   );
   const selected = useCallback(
     (result: ResultEntity) => {
@@ -120,25 +131,27 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
     });
   }, [notebookTracker]);
   return (
-    <Box sx={{ overflow: 'auto', height: '100%' }}>
-      {currentNotebookName}
-      <Search
-        columns={resultColumns}
-        onSearch={searched}
-        onResultSelect={selected}
-        defaultQuery={{
-          queryString: '_text_:*'
-        }}
-        queryFactory={solrQueryChanged => (
-          <Query onChange={solrQueryChanged}></Query>
-        )}
-        start={page?.start}
-        limit={page?.limit}
-        numFound={page?.numFound}
-        results={results}
-        error={error}
-      />
-    </Box>
+    <ThemeProvider theme={theme}>
+      <Box className="nbsearch-search-root">
+        {currentNotebookName}
+        <Search
+          columns={resultColumns}
+          onSearch={searchHandler}
+          onResultSelect={selected}
+          defaultQuery={{
+            queryString: '_text_:*'
+          }}
+          queryFactory={solrQueryChanged => (
+            <Query fields={searchFields} onChange={solrQueryChanged}></Query>
+          )}
+          start={page?.start}
+          limit={page?.limit}
+          numFound={page?.numFound}
+          results={results}
+          error={error}
+        />
+      </Box>
+    </ThemeProvider>
   );
 }
 
