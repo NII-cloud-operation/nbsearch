@@ -1,8 +1,0 @@
-notebook>=6.5.4
-tornado
-requests
-traitlets
-python-dateutil
-aioboto3
-mistletoe
-pytz
