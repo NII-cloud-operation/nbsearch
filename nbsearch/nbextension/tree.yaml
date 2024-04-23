@@ -3,4 +3,5 @@ Name: NBSearch - Tree
 Section: tree
 Description: "Database Extension for Notebooks"
 Main: tree.js
-Compatibility: 6.x
+# 1.x means nbclassic - leave 6.x in place just in case.
+Compatibility: 1.x 6.x

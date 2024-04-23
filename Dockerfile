@@ -31,8 +31,11 @@ RUN mkdir -p /opt/minio/bin/ && \
     chmod +x /opt/minio/bin/minio && mkdir -p /var/minio && chown jovyan:users -R /var/minio
 
 COPY . /tmp/nbsearch
-RUN pip install /tmp/nbsearch jupyter_nbextensions_configurator jupyter-server-proxy && \
-    jupyter serverextension enable --sys-prefix jupyter_server_proxy
+RUN pip install -e /tmp/nbsearch && \
+    pip install 'notebook>=7' jupyter_nbextensions_configurator jupyter-server-proxy && \
+    jupyter server extension enable --sys-prefix jupyter_server_proxy && \
+    jupyter labextension develop /tmp/nbsearch --overwrite && \
+    jupyter server extension enable nbsearch
 RUN mkdir -p /usr/local/bin/before-notebook.d && \
     cp /tmp/nbsearch/example/*.sh /usr/local/bin/before-notebook.d/ && \
     chmod +x /usr/local/bin/before-notebook.d/*.sh && \
@@ -43,11 +46,21 @@ RUN mkdir -p /usr/local/bin/before-notebook.d && \
 
 # Boot scripts to perform /usr/local/bin/before-notebook.d/* on JupyterHub
 RUN mkdir -p /opt/nbsearch/original/bin/ && \
+    mkdir -p /opt/nbsearch/bin/ && \
     mv /opt/conda/bin/jupyterhub-singleuser /opt/nbsearch/original/bin/jupyterhub-singleuser && \
     mv /opt/conda/bin/jupyter-notebook /opt/nbsearch/original/bin/jupyter-notebook && \
+    mv /opt/conda/bin/jupyter-lab /opt/nbsearch/original/bin/jupyter-lab && \
     cp /tmp/nbsearch/example/jupyterhub-singleuser /opt/conda/bin/ && \
     cp /tmp/nbsearch/example/jupyter-notebook /opt/conda/bin/ && \
-    chmod +x /opt/conda/bin/jupyterhub-singleuser /opt/conda/bin/jupyter-notebook
+    cp /tmp/nbsearch/example/jupyter-lab /opt/conda/bin/ && \
+    cp /tmp/nbsearch/example/run-hook.sh /opt/nbsearch/bin/ && \
+    chmod +x /opt/conda/bin/jupyterhub-singleuser /opt/conda/bin/jupyter-notebook /opt/conda/bin/jupyter-lab \
+        /opt/nbsearch/bin/run-hook.sh
+
+RUN jupyter nbclassic-extension install --py --sys-prefix nbsearch && \
+    jupyter nbclassic-serverextension enable --py --sys-prefix nbsearch && \
+    jupyter nbclassic-extension enable --py --sys-prefix nbsearch && \
+    jupyter nbclassic-extension enable --py --sys-prefix lc_notebook_diff
 
 # Configuration for Server Proxy
 RUN cat /tmp/nbsearch/example/jupyter_notebook_config.py >> $CONDA_DIR/etc/jupyter/jupyter_notebook_config.py
@@ -65,10 +78,6 @@ RUN mkdir /home/$NB_USER/.nbsearch/conf.d && \
 RUN precreate-core jupyter-notebook /opt/nbsearch/solr/jupyter-notebook/ && \
     precreate-core jupyter-cell /opt/nbsearch/solr/jupyter-cell/
 
-RUN jupyter nbextensions_configurator enable --user && \
-    jupyter nbextension install --py --user nbsearch && \
-    jupyter serverextension enable --py --user nbsearch && \
-    jupyter nbextension enable --py --user nbsearch && \
-    jupyter nbextension enable --py --user lc_notebook_diff
+ENV DOCKER_STACKS_JUPYTER_CMD=lab
 
 VOLUME /var/solr /var/minio

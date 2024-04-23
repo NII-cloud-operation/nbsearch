@@ -15,6 +15,12 @@ def get_source(name, config):
     else:
         raise KeyError('Unknown source: {}'.format(name))
 
+def _listdir(path):
+    try:
+        return os.listdir(path)
+    except PermissionError:
+        return []
+
 
 class Source(LoggingConfigurable):
 
@@ -73,7 +79,7 @@ class LocalSource(Source):
                 check_ignore = lambda path: check_ignore_base(path) or _check_ignore(path)
             else:
                 check_ignore = check_ignore_base
-        for name in os.listdir(actual_base_dir):
+        for name in _listdir(actual_base_dir):
             actual_path = os.path.join(actual_base_dir, name)
             db_path = os.path.join(db_base_dir, name)
             if name.startswith('.'):

@@ -2,6 +2,7 @@ import io
 import json
 from urllib.parse import quote
 import os
+from stat import S_IREAD
 import shutil
 import tempfile
 import unittest
@@ -116,7 +117,8 @@ class TestImportHandler(ApiHandlerTestCaseBase):
         self.notebook_file_id = '0123456789ab0123456789ab'
         self.notebook_filename = 'notebook1.ipynb'
 
-    def test_import(self):
+    @mock.patch('nbsearch.v1.handlers.os.chmod')
+    def test_import(self, mock_chmod):
         dummy_doc = {
             'filename': self.notebook_filename,
         }
@@ -149,6 +151,45 @@ class TestImportHandler(ApiHandlerTestCaseBase):
         self.assertIsInstance(mock_download_file.call_args[0][1], io.BufferedIOBase)
         self.assertEqual(mock_download_file.call_args[0][1].name,
                          os.path.join(dest_full_path, self.notebook_filename))
+        mock_chmod.assert_not_called()
+
+    @mock.patch('nbsearch.v1.handlers.os.chmod')
+    def test_import_read_only(self, mock_chmod):
+        dummy_doc = {
+            'filename': self.notebook_filename,
+        }
+        result = {
+            'response': {
+                'docs': [
+                    dummy_doc,
+                ],
+                'numFound': 1,
+                'start': 0,
+            },
+        }
+        mock_query = mock.AsyncMock(return_value=(None, result))
+        mock_download_file = mock.AsyncMock()
+        self.mock_nbsearchdb().query.side_effect = mock_query
+        self.mock_nbsearchdb().download_file.side_effect = mock_download_file
+
+        dest_path = 'nbsearch-tmp'
+        dest_full_path = os.path.join(self.base_dir, dest_path)
+        os.mkdir(dest_full_path)
+
+        response = self.fetch('/v1/import/{}/{}'.format(dest_path, self.notebook_file_id))
+        self.assertEqual(response.code, 200)
+
+        self.assertEqual(mock_query.call_count, 1)
+        self.assertEqual(mock_query.call_args[0][0], 'jupyter-notebook')
+        self.assertEqual(mock_query.call_args[0][1], 'id:"0123456789ab0123456789ab"')
+        self.assertEqual(mock_download_file.call_count, 1)
+        self.assertEqual(mock_download_file.call_args[0][0], self.notebook_file_id)
+        self.assertIsInstance(mock_download_file.call_args[0][1], io.BufferedIOBase)
+        self.assertEqual(mock_download_file.call_args[0][1].name,
+                         os.path.join(dest_full_path, self.notebook_filename))
+        mock_chmod.assert_called_once()
+        self.assertTrue(mock_chmod.call_args[0][0].endswith('/' + self.notebook_filename))
+        self.assertEqual(mock_chmod.call_args[0][1], S_IREAD)
 
     def test_import_multiple(self):
         dest_notebook_filenames = [

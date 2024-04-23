@@ -1,17 +1,23 @@
 from datetime import datetime
 import json
 import os
+from stat import S_IREAD
 
-from tornado import gen
+from jupyter_server.base.handlers import APIHandler
+from tornado import web
 import tornado.escape
 import tornado.ioloop
 import tornado.web
 
 
-class SearchHandler(tornado.web.RequestHandler):
+NBSEARCH_TMP = 'nbsearch-tmp'
+
+
+class SearchHandler(APIHandler):
     def initialize(self, db, base_dir):
         self.db = db
 
+    @web.authenticated
     async def get(self, target):
         start, limit = self._get_page()
         sort = self.get_query_argument('sort', None)
@@ -43,7 +49,7 @@ class SearchHandler(tornado.web.RequestHandler):
         return int(start), int(limit)
 
 
-class ImportHandler(tornado.web.RequestHandler):
+class ImportHandler(APIHandler):
     def initialize(self, db, base_dir):
         self.db = db
         self.base_dir = base_dir
@@ -69,6 +75,7 @@ class ImportHandler(tornado.web.RequestHandler):
             alt_filename = '{} ({}){}'.format(base_filename, index, ext)
         return alt_filename
 
+    @web.authenticated
     async def get(self, path, id):
         solrquery, result = await self.db.query(
             'jupyter-notebook',
@@ -87,9 +94,14 @@ class ImportHandler(tornado.web.RequestHandler):
             raise tornado.web.HTTPError(400)
         path = path if path is not None else '.'
         filename = self._unique_filename(path, filename)
-        if path == 'nbsearch-tmp':
-            os.makedirs(os.path.join(self.base_dir, 'nbsearch-tmp'),
+        to_tmp = False
+        if path == NBSEARCH_TMP:
+            os.makedirs(os.path.join(self.base_dir, NBSEARCH_TMP),
                         exist_ok=True)
-        with open(os.path.join(self.base_dir, path, filename), 'wb') as f:
+            to_tmp = True
+        full_path = os.path.join(self.base_dir, path, filename)
+        with open(full_path, 'wb') as f:
             await self.db.download_file(id, f)
+        if to_tmp:
+            os.chmod(full_path, S_IREAD)
         self.write({'filename': filename})

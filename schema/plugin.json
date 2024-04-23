@@ -1,0 +1,8 @@
+{
+  "jupyter.lab.shortcuts": [],
+  "title": "nbsearch",
+  "description": "nbsearch settings.",
+  "type": "object",
+  "properties": {},
+  "additionalProperties": false
+}
