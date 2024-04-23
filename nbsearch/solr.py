@@ -319,6 +319,8 @@ def _get_notebook_attr(notebook_data, base_attr=None):
                 attr['signature_server_url'] = lc_server_signature['server_url']
             if 'signature_id' in lc_server_signature:
                 attr['signature_id'] = lc_server_signature['signature_id']
+    if 'signature_server_url' in attr and 'server' not in attr:
+        attr['server'] = attr['signature_server_url']
     return attr
 
 def ipynb_to_documents(path, notebook_data, attr=None, user_pattern=None):
