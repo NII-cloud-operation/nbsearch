@@ -55,6 +55,11 @@
     margin: 32px;
 }
 
+.nbsearch-search-error {
+    color: red;
+    padding: 8px;
+}
+
 .nbsearch-candidate-toolbar {
     display: flex;
     align-items: center;

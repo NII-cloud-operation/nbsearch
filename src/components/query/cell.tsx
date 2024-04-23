@@ -8,7 +8,7 @@ import {
   SelectChangeEvent
 } from '@mui/material';
 import { FieldsQuery } from './fields';
-import { SolrQuery } from './base';
+import { LazySolrQuery, SolrQuery } from './base';
 import { RawSolrQuery } from './solr';
 import { Cell, isCodeCellModel, isMarkdownCellModel } from '@jupyterlab/cells';
 import {
@@ -47,7 +47,7 @@ function TabPanel(props: TabPanelProps): JSX.Element {
 type CellProps = {
   targetCell: Cell;
   location: CellLocation;
-  onChange?: (query: SolrQuery) => void;
+  onChange?: (query: LazySolrQuery) => void;
 };
 
 export enum CellSearchMode {
@@ -130,7 +130,14 @@ export function CellQuery(props: CellProps): JSX.Element {
       if (!onChange) {
         return;
       }
-      onChange(getSolrQueryFromCell(targetCell, mode, location));
+      onChange({
+        get: ({ cell: contextCell }) => {
+          if (!contextCell) {
+            throw new Error('Context Cell is not provided');
+          }
+          return getSolrQueryFromCell(contextCell, mode, location);
+        }
+      });
     },
     [targetCell, onChange]
   );
@@ -150,10 +157,17 @@ export function CellQuery(props: CellProps): JSX.Element {
   );
 }
 
+class LazyWrappedQuery implements LazySolrQuery {
+  constructor(private query: SolrQuery) {}
+  get(): SolrQuery {
+    return Object.assign({}, this.query);
+  }
+}
+
 export type QueryProps = {
   targetCell: Cell;
   location: CellLocation;
-  onChange?: (query: SolrQuery) => void;
+  onChange?: (query: LazySolrQuery) => void;
   fields?: IndexedColumnId[];
 };
 
@@ -169,17 +183,22 @@ export function Query({
   const [fieldsQuery, setFieldsQuery] = useState<SolrQuery>({
     queryString: '_text_:*'
   });
-  const [cellQuery, setCellQuery] = useState<SolrQuery>(
-    getSolrQueryFromCell(
-      targetCell,
-      CellSearchMode.ByMEME,
-      CellLocation.CURRENT
-    )
-  );
+  const [cellQuery, setCellQuery] = useState<LazySolrQuery>({
+    get: ({ cell: contextCell }) => {
+      if (!contextCell) {
+        throw new Error('Context Cell is not provided');
+      }
+      return getSolrQueryFromCell(
+        contextCell,
+        CellSearchMode.ByMEME,
+        CellLocation.CURRENT
+      );
+    }
+  });
   const [tabIndex, setTabIndex] = useState<TabIndex>(TabIndex.Cell);
 
   const cellChanged = useCallback(
-    (query: SolrQuery) => {
+    (query: LazySolrQuery) => {
       setCellQuery(query);
       if (!onChange) {
         return;
@@ -194,7 +213,7 @@ export function Query({
       if (!onChange) {
         return;
       }
-      onChange(query);
+      onChange(new LazyWrappedQuery(query));
     },
     [onChange]
   );
@@ -204,7 +223,7 @@ export function Query({
       if (!onChange) {
         return;
       }
-      onChange(query);
+      onChange(new LazyWrappedQuery(query));
     },
     [onChange]
   );
@@ -219,8 +238,8 @@ export function Query({
         index === TabIndex.Cell
           ? cellQuery
           : index === TabIndex.Fields
-          ? fieldsQuery
-          : solrQuery
+          ? new LazyWrappedQuery(fieldsQuery)
+          : new LazyWrappedQuery(solrQuery)
       );
     },
     [fieldsQuery, solrQuery, onChange]

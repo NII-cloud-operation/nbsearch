@@ -18,6 +18,7 @@ import {
 } from './handler';
 import { IndexedColumnId } from '../components/result/result';
 import { ResultColumn } from '../components/result/results';
+import { SolrQuery } from '../components/query/base';
 
 type SearchWidgetProps = {
   documents: IDocumentManager;
@@ -142,8 +143,16 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
             queryString: '_text_:*'
           }}
           queryFactory={solrQueryChanged => (
-            <Query fields={searchFields} onChange={solrQueryChanged}></Query>
+            <Query
+              fields={searchFields}
+              onChange={(query: SolrQuery) =>
+                solrQueryChanged({
+                  get: () => query
+                })
+              }
+            ></Query>
           )}
+          queryContext={{}}
           start={page?.start}
           limit={page?.limit}
           numFound={page?.numFound}

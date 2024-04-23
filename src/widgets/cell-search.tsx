@@ -21,7 +21,7 @@ import {
   CellLocationSelector,
   CellLocation
 } from '../components/cell-location';
-import { SolrQuery } from '../components/query/base';
+import { LazySolrQuery } from '../components/query/base';
 import { IndexedColumnId } from '../components/result/result';
 import { ResultColumn } from '../components/result/results';
 
@@ -106,7 +106,7 @@ export function SearchWidget({
     );
   }, [currentNotebookPanel, currentCell, notebookManager]);
   const queryFactory = useCallback(
-    (onChange: (query: SolrQuery) => void) => {
+    (onChange: (query: LazySolrQuery) => void) => {
       if (!currentCell) {
         return null;
       }
@@ -193,6 +193,7 @@ export function SearchWidget({
               : { queryString: '_text_:*' }
           }
           queryFactory={queryFactory}
+          queryContext={{ cell: currentCell || undefined }}
           start={page?.start}
           limit={page?.limit}
           numFound={page?.numFound}

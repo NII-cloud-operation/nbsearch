@@ -5,7 +5,7 @@ import { ResultEntity } from './result/result';
 import { Results, SortQuery } from './result/results';
 import { Page } from './page';
 import { PageQuery } from './page-control';
-import { SolrQuery } from './query/base';
+import { LazySolrQuery, SolrQuery, SolrQueryContext } from './query/base';
 import { ResultColumn } from './result/results';
 
 const COLUMN_MAX_LENGTH = 32;
@@ -27,8 +27,9 @@ export type SearchProps = {
   onResultSelect?: (result: ResultEntity) => void;
   defaultQuery: SolrQuery;
   queryFactory: (
-    onChange: (query: SolrQuery) => void
+    onChange: (query: LazySolrQuery) => void
   ) => React.ReactNode | null;
+  queryContext: SolrQueryContext;
   readyToSearch?: boolean;
   start?: number;
   limit?: number;
@@ -48,16 +49,17 @@ export function Search({
   error,
   readyToSearch,
   defaultQuery,
-  queryFactory
+  queryFactory,
+  queryContext
 }: SearchProps): JSX.Element {
-  const [solrQuery, setSolrQuery] = useState<SolrQuery | null>(null);
+  const [solrQuery, setSolrQuery] = useState<LazySolrQuery | null>(null);
   const [sortQuery, setSortQuery] = useState<SortQuery | null>(null);
   const [pageQuery, setPageQuery] = useState<PageQuery | null>(null);
   const [searching, setSearching] = useState<boolean>(false);
   const searchQuery = useMemo(() => {
     const r: SearchQuery = Object.assign(
       {},
-      solrQuery !== null ? solrQuery : defaultQuery
+      solrQuery !== null ? solrQuery.get(queryContext) : defaultQuery
     );
     if (sortQuery) {
       r.sortQuery = sortQuery;
@@ -66,9 +68,9 @@ export function Search({
       r.pageQuery = pageQuery;
     }
     return r;
-  }, [solrQuery, sortQuery, pageQuery, defaultQuery]);
+  }, [solrQuery, sortQuery, pageQuery, defaultQuery, queryContext]);
 
-  const solrQueryChanged = useCallback((query: SolrQuery) => {
+  const solrQueryChanged = useCallback((query: LazySolrQuery) => {
     setSolrQuery(query);
   }, []);
   const callSearch = useCallback(
@@ -107,6 +109,9 @@ export function Search({
     <Box sx={{ padding: '1em' }}>
       {queryFactory(solrQueryChanged)}
       <Box className="nbsearch-search-execute">
+        {error && (
+          <strong className="nbsearch-search-error">{error.message}</strong>
+        )}
         <Button
           variant="contained"
           onClick={clicked}
@@ -115,7 +120,6 @@ export function Search({
           {!searching ? 'Search' : 'Searching...'}
         </Button>
       </Box>
-      {error && <strong>{error.message}</strong>}
       <Page
         start={start}
         limit={limit}
