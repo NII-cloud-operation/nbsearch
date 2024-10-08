@@ -41,6 +41,7 @@ RUN pip install -e /tmp/nbsearch && \
     jupyter labextension develop /tmp/nbsearch --overwrite && \
     jupyter server extension enable nbsearch && \
     jupyter labextension enable nbsearch && \
+    jupyter labextension enable lc_notebook_diff && \
     jupyter labextension enable lc_index
 
 RUN mkdir -p /usr/local/bin/before-notebook.d && \
@@ -70,7 +71,8 @@ RUN mkdir -p /opt/nbsearch/original/bin/ && \
 RUN jupyter nbclassic-extension install --py --sys-prefix nbsearch && \
     jupyter nbclassic-serverextension enable --py --sys-prefix nbsearch && \
     jupyter nbclassic-extension enable --py --sys-prefix nbsearch && \
-    jupyter nbclassic-extension enable --py --sys-prefix lc_notebook_diff
+    jupyter nbclassic-extension enable --py --sys-prefix lc_notebook_diff && \
+    jupyter nblineage quick-setup --sys-prefix
 
 # Configuration for Server Proxy
 RUN cat /tmp/nbsearch/example/jupyter_notebook_config.py >> $CONDA_DIR/etc/jupyter/jupyter_notebook_config.py

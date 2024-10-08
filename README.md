@@ -1,18 +1,38 @@
 # nbsearch
 
-[![Github Actions Status](https://github.com/NII-cloud-operation/nbsearch//workflows/Build/badge.svg)](https://github.com/NII-cloud-operation/nbsearch//actions/workflows/build.yml)[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/NII-cloud-operation/nbsearch//main?urlpath=lab)
+[![Release](https://github.com/NII-cloud-operation/nbsearch/actions/workflows/release.yml/badge.svg)](https://github.com/NII-cloud-operation/nbsearch/actions/workflows/release.yml) [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/NII-cloud-operation/nbsearch/feature/lab?urlpath=lab)
 
 nbsearch extension provides search capabilities for Jupyter Notebooks, which you created. It supports search by MEME in addition to search by keywords and modified times like a search engine. Therefore, users can easily find cells of the same origin in sticky notes added by sidestickies.
+
+## Try it out on mybinder.org
+
+You can try out the extension on mybinder.org by clicking the Binder badge above, and refer to the [Usage](#usage) section for more information.
+
+The following software is installed in this environment.
+
+- Services
+  - JupyterLab
+  - Jupyter Notebook 7
+  - [Apache Solr](https://solr.apache.org/)
+  - [MinIO](https://min.io/)
+
+- Extensions
+  - nbsearch
+  - [nblineage](https://github.com/NII-cloud-operation/Jupyter-LC_nblineage)
+  - [lc_notebook_diff](https://github.com/NII-cloud-operation/Jupyter-LC_notebook_diff)
+
+If you create a Notebook file in this environment, it will be automatically indexed in Solr and you will be able to search for it using the Search. Please refer to the [Usage](#usage) section for more information.
+
+> **Note**: It may take some time for Apache Solr and MinIO to start up. If your search fails, please wait a while and try again.
 
 ## Requirements
 
 - JupyterLab >= 4.0.0
+- Jupyter Notebook >= 7.0.0
 
 ## Install
 
 To install the extension, execute:
-
-*TBD*
 
 ```bash
 pip install git+https://github.com/NII-cloud-operation/nbsearch
@@ -20,22 +40,26 @@ pip install git+https://github.com/NII-cloud-operation/nbsearch
 
 To use nbsearch extension, you will also need to install and enable. You can use Jupyter subcommand:
 
-*TBD*
-
 ```
-jupyter nbextension install --py nbsearch
-jupyter serverextension enable --py nbsearch
-jupyter nbextension enable --py nbsearch
+jupyter server extension enable nbsearch
+jupyter labextension enable nbsearch
+
+# If you want to use the extension with the classic notebook,
+# you need to install and enable the nbclassic notebook extension.
+jupyter nbclassic-extension install --py --sys-prefix nbsearch
+jupyter nbclassic-serverextension enable --py --sys-prefix nbsearch
+jupyter nbclassic-extension enable --py --sys-prefix nbsearch
 ```
 
 To compare multiple Notebooks, you need to install [Jupyter-LC_notebook_diff](https://github.com/NII-cloud-operation/Jupyter-LC_notebook_diff), as shown below.
 
-*TBD*
-
 ```
-pip install git+https://github.com/NII-cloud-operation/Jupyter-LC_notebook_diff
-jupyter nbextension install --py lc_notebook_diff
-jupyter nbextension enable --py lc_notebook_diff
+pip install git+https://github.com/NII-cloud-operation/Jupyter-LC_notebook_diff.git@feature/lab
+jupyter labextension enable lc_notebook_diff
+
+# If you want to use the extension with the classic notebook,
+# you need to install and enable the nbclassic notebook extension.
+jupyter nbclassic-extension enable --py --sys-prefix lc_notebook_diff
 ```
 
 then restart Jupyter notebook.
