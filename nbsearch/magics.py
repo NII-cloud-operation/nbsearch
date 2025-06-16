@@ -1,7 +1,7 @@
 """NBSearch IPython Magic Commands"""
 
 from IPython.core.magic import Magics, cell_magic, magics_class
-from IPython.core.display import display, HTML, Javascript
+from IPython.core.display import HTML, Javascript
 
 
 @magics_class
@@ -95,7 +95,7 @@ class NBSearchMagics(Magics):
 """
 
         # Execute the JavaScript code
-        display(Javascript(js_code))
+        return Javascript(js_code)
 
 
 def load_ipython_extension(ipython):
