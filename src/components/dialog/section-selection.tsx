@@ -142,13 +142,16 @@ export async function showSectionSelectionDialog(
 ): Promise<NotebookSection[] | null> {
   // Convert initial section titles to indices
   // If no initial selection is provided or it's empty, select all sections
-  const initialSelectedIndices = initialSelectedSectionTitles && initialSelectedSectionTitles.length > 0
-    ? new Set(
-        initialSelectedSectionTitles
-          .map(title => sections.findIndex(section => section.title === title))
-          .filter(index => index !== -1)
-      )
-    : new Set(sections.map((_, index) => index)); // Select all sections by default
+  const initialSelectedIndices =
+    initialSelectedSectionTitles && initialSelectedSectionTitles.length > 0
+      ? new Set(
+          initialSelectedSectionTitles
+            .map(title =>
+              sections.findIndex(section => section.title === title)
+            )
+            .filter(index => index !== -1)
+        )
+      : new Set(sections.map((_, index) => index)); // Select all sections by default
 
   const widget = new SectionSelectionWidget(sections, initialSelectedIndices);
 
