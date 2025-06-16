@@ -134,6 +134,49 @@ The NBSearch pane allows searching of cells. You can search for preceding and su
 
 ![NBSearch pane](./images/search-cell.gif)
 
+### Using %%nbsearch Magic Command
+
+The `%%nbsearch` magic command provides a convenient way to search and insert notebook cells directly within your notebook.
+
+#### Simple String Query
+
+```
+%%nbsearch
+ansible hadoop
+```
+
+This executes a full-text search for "ansible hadoop" and opens an interactive search interface where you can browse results and select sections to insert.
+
+#### YAML Query with Multiple Criteria
+
+```
+%%nbsearch
+query:
+  composition: AND
+  keyword:
+    source: "operationhub"
+    outputs: "success"
+```
+
+This searches for notebooks that contain the term "operationhub" .
+
+#### Automatic Updates After Cell Insertion
+
+When you select and insert sections from search results, the magic command automatically updates to include the search metadata:
+
+```
+# %%nbsearch
+# query:
+#   composition: AND
+#   keyword:
+#     source: matplotlib
+#     lc_cell_memes: fc68b4b4-2927-11e9-b46c-0242ac110002
+# sections:
+#   - "# Libraries"
+```
+
+The commented-out lines preserve your search criteria and selected sections. You can uncomment and re-execute to repeat the same search or modify the criteria for new searches. When re-executing, if cells with the same MEME sequence already exist after the current cell, the system will update their content and metadata instead of inserting duplicate cells.
+
 ## Uninstall
 
 To remove the extension, execute:

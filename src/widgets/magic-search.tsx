@@ -4,6 +4,7 @@ import { ReactWidget } from '@jupyterlab/apputils';
 import { IDocumentManager } from '@jupyterlab/docmanager';
 import { INotebookTracker } from '@jupyterlab/notebook';
 import { CodeCell } from '@jupyterlab/cells';
+import { ISharedMarkdownCell, ISharedRawCell } from '@jupyter/ydoc';
 
 import { Box, ThemeProvider } from '@mui/material';
 
@@ -66,6 +67,17 @@ function getOutputElementFromCodeCell(codeCell: CodeCell): HTMLElement {
     return outputElement;
   }
   throw new Error('No output area found in the provided CodeCell');
+}
+
+/**
+ * Arrange metadata for a notebook cell.
+ */
+function arrangeMetadata(metadata: any): any {
+  const newMetadata = { ...metadata };
+  newMetadata.deletable = true;
+  newMetadata.editable = true;
+  newMetadata.trusted = true;
+  return newMetadata;
 }
 
 type Keyword = {
@@ -185,6 +197,11 @@ function parseNotebookSections(cells: any[]): NotebookSection[] {
   return sections;
 }
 
+type InsertedContent = {
+  insertedMEMEs?: string[];
+  selectedSectionTitles?: string[];
+};
+
 type MagicSearchWidgetProps = {
   currentCell: CodeCell;
   documents: IDocumentManager;
@@ -195,7 +212,7 @@ type MagicSearchWidgetProps = {
   onClosed?: (
     inserted: boolean,
     latestCompositeQuery?: CompositeQuery,
-    selectedSectionTitles?: string[]
+    insertedContent?: InsertedContent
   ) => void;
 };
 const resultColumns: ResultColumn[] = [
@@ -295,79 +312,158 @@ export function MagicSearchWidget({
         console.warn('No notebook_id found in result');
         return;
       }
-      try {
-        const notebookData = await requestAPI<any>(`v1/data/${result.id}`);
-        console.log('DataHandler response:', notebookData);
+      const notebookData = await requestAPI<any>(`v1/data/${result.id}`);
 
-        // Get the current notebook and find the current cell's index
-        const currentNotebook = notebookTracker.currentWidget?.model;
-        if (!currentNotebook || !notebookData.notebook?.cells) {
-          console.warn('No current notebook or cells data');
-          return;
+      const currentNotebook = notebookTracker.currentWidget?.model;
+      if (!currentNotebook || !notebookData.notebook?.cells) {
+        console.warn('No current notebook or cells data');
+        return;
+      }
+
+      const sections = parseNotebookSections(notebookData.notebook.cells);
+
+      // Show section selection dialog
+      const selectedSections = await showSectionSelectionDialog(
+        sections,
+        lastSelectedSections
+      );
+
+      if (!selectedSections || selectedSections.length === 0) {
+        console.log('Cell insertion cancelled by user or no sections selected');
+        return;
+      }
+
+      const currentCellIndex = [...currentNotebook.cells].findIndex(
+        cell => cell.id === currentCell.model.id
+      );
+
+      if (currentCellIndex === -1) {
+        console.warn('Current cell not found in notebook');
+        return;
+      }
+
+      // Get MEME sequence from selected sections
+      const selectedMEMEs: string[] = [];
+      for (const section of selectedSections) {
+        for (const cellData of section.cells) {
+          if (cellData.metadata?.lc_cell_meme?.current) {
+            selectedMEMEs.push(cellData.metadata.lc_cell_meme.current);
+          }
         }
+      }
 
-        // Parse notebook into sections
-        const sections = parseNotebookSections(notebookData.notebook.cells);
-
-        // Show section selection dialog
-        const selectedSections = await showSectionSelectionDialog(
-          sections,
-          lastSelectedSections
-        );
-
-        if (!selectedSections || selectedSections.length === 0) {
-          console.log(
-            'Cell insertion cancelled by user or no sections selected'
-          );
-          return;
+      // Get MEME sequence from current notebook starting after currentCell
+      const existingMEMEs: string[] = [];
+      for (
+        let i = currentCellIndex + 1;
+        i < currentNotebook.cells.length;
+        i++
+      ) {
+        const cell = currentNotebook.cells.get(i);
+        const meme = (cell.metadata?.lc_cell_meme as any)?.current;
+        if (meme && typeof meme === 'string') {
+          existingMEMEs.push(meme);
         }
+      }
 
-        // Find the index of the current cell
-        const currentCellIndex = [...currentNotebook.cells].findIndex(
-          cell => cell.id === currentCell.model.id
-        );
+      // Check if MEME sequences match
+      const sequencesMatch =
+        selectedMEMEs.length === existingMEMEs.length &&
+        selectedMEMEs.every((meme, index) => meme === existingMEMEs[index]);
 
-        if (currentCellIndex === -1) {
-          console.warn('Current cell not found in notebook');
-          return;
-        }
+      let insertIndex = currentCellIndex + 1;
+      let totalInsertedCells = 0;
+      let totalUpdatedCells = 0;
+      const insertedMEMEs: string[] = [];
 
-        // selectedSections is already validated above
-
-        // Insert cells from selected sections after the current cell
-        let insertIndex = currentCellIndex + 1;
-        let totalInsertedCells = 0;
-
+      if (sequencesMatch) {
+        // Update existing cells instead of inserting new ones
+        let cellIndex = currentCellIndex + 1;
         for (const section of selectedSections) {
           for (const cellData of section.cells) {
-            const newCell = {
+            if (cellIndex < currentNotebook.cells.length) {
+              const existingCell = currentNotebook.cells.get(cellIndex);
+              // Update cell content and metadata
+              const sourceContent = Array.isArray(cellData.source)
+                ? cellData.source.join('\n')
+                : cellData.source;
+              existingCell.sharedModel.setSource(sourceContent);
+              existingCell.sharedModel.setMetadata(
+                arrangeMetadata(cellData.metadata || {})
+              );
+              if (cellData.attachments) {
+                // Only markdown and raw cells support attachments
+                if (
+                  cellData.cell_type === 'markdown' ||
+                  cellData.cell_type === 'raw'
+                ) {
+                  (
+                    existingCell.sharedModel as
+                      | ISharedMarkdownCell
+                      | ISharedRawCell
+                  ).setAttachments(cellData.attachments);
+                }
+              }
+              totalUpdatedCells++;
+              cellIndex++;
+
+              if (cellData.metadata?.lc_cell_meme?.current) {
+                insertedMEMEs.push(cellData.metadata.lc_cell_meme.current);
+              }
+            }
+          }
+        }
+      } else {
+        // Insert new cells as before
+        for (const section of selectedSections) {
+          for (const cellData of section.cells) {
+            const newCell: any = {
               cell_type: cellData.cell_type,
               source: cellData.source,
-              metadata: cellData.metadata || {},
+              metadata: arrangeMetadata(cellData.metadata || {}),
               trusted: true
             };
+            if (
+              cellData.attachments &&
+              (cellData.cell_type === 'markdown' ||
+                cellData.cell_type === 'raw')
+            ) {
+              newCell.attachments = cellData.attachments;
+            }
             currentNotebook.sharedModel.insertCell(insertIndex, newCell);
             insertIndex++;
             totalInsertedCells++;
+            if (cellData.metadata?.lc_cell_meme?.current) {
+              insertedMEMEs.push(cellData.metadata.lc_cell_meme.current);
+            }
           }
         }
+      }
 
+      if (sequencesMatch) {
+        console.log(
+          `Updated ${totalUpdatedCells} existing cells from ${selectedSections.length} sections`,
+          'Latest composite query:',
+          latestCompositeQuery
+        );
+      } else {
         console.log(
           `Inserted ${totalInsertedCells} cells from ${selectedSections.length} sections after current cell`,
           'Latest composite query:',
           latestCompositeQuery
         );
+      }
 
-        // Close the search display
-        setIsClosed(true);
-        if (onClosed) {
-          const selectedSectionTitles = selectedSections.map(
-            section => section.title
-          );
-          onClosed(true, latestCompositeQuery, selectedSectionTitles);
-        }
-      } catch (error) {
-        console.error('Error calling DataHandler:', error);
+      // Close the search display
+      setIsClosed(true);
+      if (onClosed) {
+        const selectedSectionTitles = selectedSections.map(
+          section => section.title
+        );
+        onClosed(true, latestCompositeQuery, {
+          insertedMEMEs,
+          selectedSectionTitles
+        });
       }
     },
     [notebookTracker, currentCell, latestCompositeQuery, onClosed, documents]
@@ -440,7 +536,10 @@ export function MagicSearchWidget({
           error={error}
           onClosed={
             onClosed
-              ? () => onClosed(false, latestCompositeQuery, [])
+              ? () =>
+                  onClosed(false, latestCompositeQuery, {
+                    selectedSectionTitles: []
+                  })
               : undefined
           }
         />
@@ -493,18 +592,22 @@ export function createMagicSearchWidget(
           onClosed={(
             inserted: boolean,
             latestCompositeQuery?: CompositeQuery,
-            selectedSectionTitles?: string[]
+            insertedContent?: InsertedContent
           ) => {
             // Use the latest composite query if available, otherwise fall back to original keyword
             const keywordToUse = latestCompositeQuery
               ? getKeywordFromCompositeQuery(latestCompositeQuery)
               : keyword || {};
+            if (insertedContent?.insertedMEMEs) {
+              keywordToUse.keyword.lc_cell_memes =
+                insertedContent.insertedMEMEs[0];
+            }
 
             // Convert keyword to YAML and set as cell source
             let yamlLines: string[] = ['%%nbsearch'];
             const yamlData: KeywordWithSections = {
               query: keywordToUse,
-              sections: selectedSectionTitles || []
+              sections: insertedContent?.selectedSectionTitles || []
             };
             yamlLines = yamlLines.concat(
               stringify(yamlData).trim().split('\n')
