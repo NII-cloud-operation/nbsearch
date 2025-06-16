@@ -13,6 +13,7 @@ enum TabIndex {
 
 export type QueryProps = {
   onChange?: (query: SolrQuery, compositeQuery?: CompositeQuery) => void;
+  onSearch?: () => void;
   fields?: IndexedColumnId[];
   initialFieldsValue?: CompositeQuery;
 };
@@ -39,6 +40,7 @@ function TabPanel(props: TabPanelProps): JSX.Element {
 
 export function Query({
   onChange,
+  onSearch,
   fields,
   initialFieldsValue
 }: QueryProps): JSX.Element {
@@ -109,6 +111,7 @@ export function Query({
         <FieldsQuery
           fields={fields}
           onChange={fieldsChanged}
+          onSearch={onSearch}
           initialValue={initialFieldsValue}
         />
       </TabPanel>

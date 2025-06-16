@@ -166,12 +166,14 @@ export type CompositeQuery = {
 
 export type FieldsQueryProps = {
   onChange?: (query: SolrQuery, compositeQuery: CompositeQuery) => void;
+  onSearch?: () => void;
   fields?: IndexedColumnId[];
   initialValue?: CompositeQuery;
 };
 
 export function FieldsQuery({
   onChange,
+  onSearch,
   fields: customFields,
   initialValue
 }: FieldsQueryProps): JSX.Element {
@@ -322,7 +324,16 @@ export function FieldsQuery({
         {fieldQueries.map((query, index) => {
           const field = FIELDS.find(field => field.id === query.target);
           return (
-            <Box key={index} className="nbsearch-query-fields-value">
+            <Box
+              key={index}
+              className="nbsearch-query-fields-value"
+              sx={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 1,
+                mb: 2
+              }}
+            >
               <TextField
                 label={field?.label}
                 helperText={
@@ -331,13 +342,20 @@ export function FieldsQuery({
                     : 'Solr Query: e.g. *'
                 }
                 defaultValue={query.query}
+                fullWidth
                 onChange={(
                   event: ChangeEvent<HTMLTextAreaElement | HTMLInputElement>
                 ) => updateFieldQueriesQuery(index, event.target.value)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' && onSearch) {
+                    onSearch();
+                  }
+                }}
               />
               <Button
                 onClick={() => deleteFieldQueries(index)}
                 disabled={fieldQueries.length <= 1}
+                sx={{ minWidth: 'auto', mt: 1 }}
               >
                 <DeleteIcon />
               </Button>
@@ -346,7 +364,15 @@ export function FieldsQuery({
         })}
       </Box>
       {defaultField !== undefined && (
-        <Box className="nbsearch-query-fields-add">
+        <Box
+          className="nbsearch-query-fields-add"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            mt: 1
+          }}
+        >
           <Button onClick={() => addFieldQueries()}>
             <AddIcon />
           </Button>

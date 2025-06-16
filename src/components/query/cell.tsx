@@ -168,12 +168,14 @@ export type QueryProps = {
   targetCell: Cell;
   location: CellLocation;
   onChange?: (query: LazySolrQuery, compositeQuery?: CompositeQuery) => void;
+  onSearch?: () => void;
   fields?: IndexedColumnId[];
   initialFieldsValue?: CompositeQuery;
 };
 
 export function Query({
   onChange,
+  onSearch,
   targetCell,
   location,
   fields,
@@ -285,6 +287,7 @@ export function Query({
         <FieldsQuery
           fields={fields}
           onChange={fieldsChanged}
+          onSearch={onSearch}
           initialValue={initialFieldsValue}
         />
       </TabPanel>

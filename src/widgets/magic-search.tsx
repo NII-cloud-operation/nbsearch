@@ -413,7 +413,7 @@ export function MagicSearchWidget({
               ? { queryString: getSolrQueryFromKeyword(keyword) }
               : { queryString: '_text_:*' }
           }
-          queryFactory={solrQueryChanged => (
+          queryFactory={(solrQueryChanged, onSearch) => (
             <Query
               fields={searchFields}
               onChange={(query: SolrQuery, compositeQuery?: CompositeQuery) => {
@@ -426,6 +426,7 @@ export function MagicSearchWidget({
                   get: () => query
                 });
               }}
+              onSearch={onSearch}
               initialFieldsValue={
                 keyword ? getCompositeQueryFromKeyword(keyword) : undefined
               }

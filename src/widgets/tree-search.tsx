@@ -142,7 +142,7 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
           defaultQuery={{
             queryString: '_text_:*'
           }}
-          queryFactory={solrQueryChanged => (
+          queryFactory={(solrQueryChanged, onSearch) => (
             <Query
               fields={searchFields}
               onChange={(query: SolrQuery) =>
@@ -150,6 +150,7 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
                   get: () => query
                 })
               }
+              onSearch={onSearch}
             ></Query>
           )}
           queryContext={{}}

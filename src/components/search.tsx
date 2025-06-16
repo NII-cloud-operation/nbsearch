@@ -29,7 +29,8 @@ export type SearchProps = {
   showAddButton?: boolean;
   defaultQuery: SolrQuery;
   queryFactory: (
-    onChange: (query: LazySolrQuery) => void
+    onChange: (query: LazySolrQuery) => void,
+    onSearch?: () => void
   ) => React.ReactNode | null;
   queryContext: SolrQueryContext;
   readyToSearch?: boolean;
@@ -113,7 +114,7 @@ export function Search({
 
   return (
     <Box sx={{ padding: '1em' }}>
-      {queryFactory(solrQueryChanged)}
+      {queryFactory(solrQueryChanged, clicked)}
       <Box className="nbsearch-search-execute">
         {error && (
           <strong className="nbsearch-search-error">{error.message}</strong>
