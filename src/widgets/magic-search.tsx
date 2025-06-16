@@ -408,6 +408,7 @@ export function MagicSearchWidget({
           onResultSelect={selected}
           showAddButton={true}
           onResultAdd={added}
+          autoSearch={true}
           defaultQuery={
             keyword
               ? { queryString: getSolrQueryFromKeyword(keyword) }
@@ -419,7 +420,6 @@ export function MagicSearchWidget({
               onChange={(query: SolrQuery, compositeQuery?: CompositeQuery) => {
                 // Update latest composite query if available
                 if (compositeQuery) {
-                  console.log('Composite query changed:', compositeQuery);
                   setLatestCompositeQuery(compositeQuery);
                 }
                 solrQueryChanged({

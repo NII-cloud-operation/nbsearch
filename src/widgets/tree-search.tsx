@@ -139,6 +139,7 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
           columns={resultColumns}
           onSearch={searchHandler}
           onResultSelect={selected}
+          autoSearch={true}
           defaultQuery={{
             queryString: '_text_:*'
           }}

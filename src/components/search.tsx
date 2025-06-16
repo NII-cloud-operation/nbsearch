@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { Box, Button, TableContainer } from '@mui/material';
 
 import { ResultEntity } from './result/result';
@@ -34,6 +34,7 @@ export type SearchProps = {
   ) => React.ReactNode | null;
   queryContext: SolrQueryContext;
   readyToSearch?: boolean;
+  autoSearch?: boolean;
   start?: number;
   limit?: number;
   numFound?: number;
@@ -54,6 +55,7 @@ export function Search({
   results,
   error,
   readyToSearch,
+  autoSearch,
   defaultQuery,
   queryFactory,
   queryContext,
@@ -63,6 +65,7 @@ export function Search({
   const [sortQuery, setSortQuery] = useState<SortQuery | null>(null);
   const [pageQuery, setPageQuery] = useState<PageQuery | null>(null);
   const [searching, setSearching] = useState<boolean>(false);
+  const [hasAutoSearched, setHasAutoSearched] = useState<boolean>(false);
   const searchQuery = useMemo(() => {
     const r: SearchQuery = Object.assign(
       {},
@@ -95,6 +98,14 @@ export function Search({
   const clicked = useCallback(() => {
     callSearch(searchQuery);
   }, [callSearch, searchQuery]);
+
+  // Auto-search on first render if autoSearch is enabled
+  useEffect(() => {
+    if (autoSearch && !hasAutoSearched && onSearch) {
+      setHasAutoSearched(true);
+      callSearch(searchQuery);
+    }
+  }, [autoSearch, hasAutoSearched, onSearch, callSearch, searchQuery]);
   const sorted = useCallback(
     (sortQuery: SortQuery) => {
       setSortQuery(sortQuery);
