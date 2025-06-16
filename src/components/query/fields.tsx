@@ -165,22 +165,28 @@ export type CompositeQuery = {
 };
 
 export type FieldsQueryProps = {
-  onChange?: (query: SolrQuery) => void;
+  onChange?: (query: SolrQuery, compositeQuery: CompositeQuery) => void;
   fields?: IndexedColumnId[];
+  initialValue?: CompositeQuery;
 };
 
 export function FieldsQuery({
   onChange,
-  fields: customFields
+  fields: customFields,
+  initialValue
 }: FieldsQueryProps): JSX.Element {
-  const [composition, setComposition] = useState<Composition>(Composition.And);
+  const [composition, setComposition] = useState<Composition>(
+    initialValue?.composition ?? Composition.And
+  );
   const [selectedField, setSelectedField] = useState<Field | null>(null);
-  const [fieldQueries, setFieldQueries] = useState<FieldQuery[]>([
-    {
-      target: IndexedColumnId.FullText,
-      query: '*'
-    }
-  ]);
+  const [fieldQueries, setFieldQueries] = useState<FieldQuery[]>(
+    initialValue?.fields ?? [
+      {
+        target: IndexedColumnId.FullText,
+        query: '*'
+      }
+    ]
+  );
 
   const fields = useMemo(() => {
     const splittedCustomFields = customFields
@@ -221,12 +227,19 @@ export function FieldsQuery({
       const solrQuery = newQueries
         .map(field => `${field.target}:${field.query}`)
         .join(` ${composition} `);
+      const compositeQuery: CompositeQuery = {
+        composition,
+        fields: newQueries
+      };
       if (!onChange) {
         return;
       }
-      onChange({
-        queryString: solrQuery
-      });
+      onChange(
+        {
+          queryString: solrQuery
+        },
+        compositeQuery
+      );
     },
     [onChange]
   );

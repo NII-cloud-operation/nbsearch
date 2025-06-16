@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { Box, Tabs, Tab } from '@mui/material';
 
-import { FieldsQuery } from './fields';
+import { FieldsQuery, CompositeQuery } from './fields';
 import { SolrQuery } from './base';
 import { RawSolrQuery } from './solr';
 import { IndexedColumnId } from '../result/result';
@@ -12,8 +12,9 @@ enum TabIndex {
 }
 
 export type QueryProps = {
-  onChange?: (query: SolrQuery) => void;
+  onChange?: (query: SolrQuery, compositeQuery?: CompositeQuery) => void;
   fields?: IndexedColumnId[];
+  initialFieldsValue?: CompositeQuery;
 };
 
 type TabPanelProps = {
@@ -36,13 +37,20 @@ function TabPanel(props: TabPanelProps): JSX.Element {
   );
 }
 
-export function Query({ onChange, fields }: QueryProps): JSX.Element {
+export function Query({
+  onChange,
+  fields,
+  initialFieldsValue
+}: QueryProps): JSX.Element {
   const [solrQuery, setSolrQuery] = useState<SolrQuery>({
     queryString: '_text_:*'
   });
   const [fieldsQuery, setFieldsQuery] = useState<SolrQuery>({
     queryString: '_text_:*'
   });
+  const [fieldsCompositeQuery, setFieldsCompositeQuery] = useState<
+    CompositeQuery | undefined
+  >(undefined);
   const [tabIndex, setTabIndex] = useState<TabIndex>(TabIndex.Fields);
 
   const solrChanged = useCallback(
@@ -56,12 +64,13 @@ export function Query({ onChange, fields }: QueryProps): JSX.Element {
     [onChange]
   );
   const fieldsChanged = useCallback(
-    (query: SolrQuery) => {
+    (query: SolrQuery, compositeQuery: CompositeQuery) => {
       setFieldsQuery(query);
+      setFieldsCompositeQuery(compositeQuery);
       if (!onChange) {
         return;
       }
-      onChange(query);
+      onChange(query, compositeQuery);
     },
     [onChange]
   );
@@ -72,7 +81,10 @@ export function Query({ onChange, fields }: QueryProps): JSX.Element {
       if (!onChange) {
         return;
       }
-      onChange(index === TabIndex.Fields ? fieldsQuery : solrQuery);
+      onChange(
+        index === TabIndex.Fields ? fieldsQuery : solrQuery,
+        index === TabIndex.Fields ? fieldsCompositeQuery : undefined
+      );
     },
     [fieldsQuery, solrQuery, onChange]
   );
@@ -94,7 +106,11 @@ export function Query({ onChange, fields }: QueryProps): JSX.Element {
         />
       </Tabs>
       <TabPanel id={TabIndex.Fields} value={tabIndex}>
-        <FieldsQuery fields={fields} onChange={fieldsChanged} />
+        <FieldsQuery
+          fields={fields}
+          onChange={fieldsChanged}
+          initialValue={initialFieldsValue}
+        />
       </TabPanel>
       <TabPanel id={TabIndex.Solr} value={tabIndex}>
         <RawSolrQuery onChange={solrChanged} query={solrQuery.queryString} />

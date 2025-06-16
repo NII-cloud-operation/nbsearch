@@ -39,6 +39,8 @@ export type ResultsProps = {
   columns: ResultColumn[];
   onColumnSort?: (key: SortQuery) => void;
   onResultSelect?: (data: ResultEntity) => void;
+  onResultAdd?: (data: ResultEntity) => void;
+  showAddButton?: boolean;
   maxLength?: number;
 };
 
@@ -83,6 +85,8 @@ export function Results({
   data,
   onColumnSort,
   onResultSelect,
+  onResultAdd,
+  showAddButton,
   maxLength
 }: ResultsProps) {
   if (!data || data.length === 0) {
@@ -108,12 +112,15 @@ export function Results({
           {columns.map(column => (
             <TableCell>{renderColumn(column, sorted, sortQuery)}</TableCell>
           ))}
+          {showAddButton && <TableCell>Action</TableCell>}
         </TableRow>
       </TableHead>
       <TableBody>
         {data.map(result => (
           <Result
             onSelect={onResultSelect}
+            onAdd={onResultAdd}
+            showAddButton={showAddButton}
             columns={columns.map(c => c.value)}
             data={result}
             maxLength={maxLength}

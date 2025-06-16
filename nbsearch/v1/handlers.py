@@ -105,3 +105,58 @@ class ImportHandler(APIHandler):
         if to_tmp:
             os.chmod(full_path, S_IREAD)
         self.write({'filename': filename})
+
+
+class DataHandler(APIHandler):
+    def initialize(self, db, base_dir):
+        self.db = db
+        self.base_dir = base_dir
+
+    @web.authenticated
+    async def get(self, id):
+        """
+        Get notebook data as JSON response without saving to disk
+        """
+        solrquery, result = await self.db.query(
+            'jupyter-notebook',
+            f'id:"{id}"',
+        )
+        docs = result['response']['docs']
+        if len(docs) == 0:
+            raise tornado.web.HTTPError(404)
+
+        notebook = docs[0]
+
+        # Create a temporary file-like object to capture the notebook data
+        from io import BytesIO
+        notebook_data = BytesIO()
+
+        # Download notebook data to memory
+        await self.db.download_file(id, notebook_data)
+
+        # Get the raw notebook content
+        notebook_data.seek(0)
+        notebook_content = notebook_data.read()
+
+        try:
+            # Parse as JSON to validate and format
+            notebook_json = json.loads(notebook_content.decode('utf-8'))
+
+            # Add metadata from Solr
+            _, filename = os.path.split(notebook['filename'])
+            response = {
+                'notebook': notebook_json,
+                'metadata': {
+                    'id': id,
+                    'filename': filename,
+                    'original_path': notebook['filename'],
+                    'owner': notebook.get('owner'),
+                    'server': notebook.get('signature_server_url'),
+                    'modified': notebook.get('mtime')
+                }
+            }
+
+            self.write(response)
+
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            raise tornado.web.HTTPError(400, f"Invalid notebook format: {str(e)}")

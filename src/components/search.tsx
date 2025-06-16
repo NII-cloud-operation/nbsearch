@@ -25,6 +25,8 @@ export type SearchProps = {
   columns: ResultColumn[];
   onSearch?: (query: SearchQuery, finished: () => void) => void;
   onResultSelect?: (result: ResultEntity) => void;
+  onResultAdd?: (result: ResultEntity) => void;
+  showAddButton?: boolean;
   defaultQuery: SolrQuery;
   queryFactory: (
     onChange: (query: LazySolrQuery) => void
@@ -36,12 +38,15 @@ export type SearchProps = {
   numFound?: number;
   results?: ResultEntity[];
   error?: SearchError;
+  onClosed?: () => void;
 };
 
 export function Search({
   columns,
   onSearch,
   onResultSelect,
+  onResultAdd,
+  showAddButton,
   start,
   limit,
   numFound,
@@ -50,7 +55,8 @@ export function Search({
   readyToSearch,
   defaultQuery,
   queryFactory,
-  queryContext
+  queryContext,
+  onClosed
 }: SearchProps): JSX.Element {
   const [solrQuery, setSolrQuery] = useState<LazySolrQuery | null>(null);
   const [sortQuery, setSortQuery] = useState<SortQuery | null>(null);
@@ -119,6 +125,11 @@ export function Search({
         >
           {!searching ? 'Search' : 'Searching...'}
         </Button>
+        {onClosed && (
+          <Button variant="outlined" onClick={onClosed} sx={{ ml: 1 }}>
+            Close
+          </Button>
+        )}
       </Box>
       <Page
         start={start}
@@ -131,6 +142,8 @@ export function Search({
             columns={columns}
             onColumnSort={sorted}
             onResultSelect={onResultSelect}
+            onResultAdd={onResultAdd}
+            showAddButton={showAddButton}
             data={results}
             maxLength={COLUMN_MAX_LENGTH}
           />

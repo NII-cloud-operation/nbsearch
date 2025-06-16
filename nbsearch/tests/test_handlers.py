@@ -10,9 +10,26 @@ import tornado.testing
 import tornado.web
 from unittest import mock
 import nbsearch.server
+from nbsearch.v1.handlers import SearchHandler, ImportHandler, DataHandler
 
 collection_name = 'test_notebooks'
 history_name = 'test_history'
+
+
+# Test handlers without authentication
+class TestableSearchHandler(SearchHandler):
+    def get_current_user(self):
+        return "test_user"
+
+
+class TestableImportHandler(ImportHandler):
+    def get_current_user(self):
+        return "test_user"
+
+
+class TestableDataHandler(DataHandler):
+    def get_current_user(self):
+        return "test_user"
 
 
 class ApiHandlerTestCaseBase(tornado.testing.AsyncHTTPTestCase):
@@ -32,8 +49,19 @@ class ApiHandlerTestCaseBase(tornado.testing.AsyncHTTPTestCase):
         super().tearDown()
 
     def get_app(self):
+        handler_settings = {}
+        handler_settings['db'] = self.mock_nbsearchdb()
+        handler_settings['base_dir'] = self.base_dir
+
+        handlers = [
+            (r"/v1/(?P<target>[^\/]+)/search", TestableSearchHandler, handler_settings),
+            (r"/v1/import(?P<path>/.+)?/(?P<id>[^\/]+)", TestableImportHandler, handler_settings),
+            (r"/v1/data/(?P<id>[^\/]+)", TestableDataHandler, handler_settings),
+        ]
+
         return tornado.web.Application(
-            nbsearch.server.get_api_handlers(None, self.base_dir)
+            handlers,
+            cookie_secret="test_secret_for_testing"
         )
 
 
@@ -61,7 +89,7 @@ class TestSearchHandler(ApiHandlerTestCaseBase):
         response = self.fetch('/v1/cell/search?query=' + quote('_text_:*'))
         self.assertEqual(response.code, 200)
         self.assertEqual(response.headers['Content-Type'],
-                         'application/json; charset=UTF-8')
+                         'application/json')
         self.assertEqual(json.loads(response.body.decode('utf8')), {
             'cells': [{'test': True}],
             'error': None,
@@ -94,7 +122,7 @@ class TestSearchHandler(ApiHandlerTestCaseBase):
         response = self.fetch('/v1/notebook/search?query=' + quote('_text_:*'))
         self.assertEqual(response.code, 200)
         self.assertEqual(response.headers['Content-Type'],
-                         'application/json; charset=UTF-8')
+                         'application/json')
         self.assertEqual(json.loads(response.body.decode('utf8')), {
             'notebooks': [{'test': True}],
             'error': None,
@@ -358,6 +386,114 @@ class TestImportHandler(ApiHandlerTestCaseBase):
             self.assertEqual(response.code, 400)
             self.assertEqual(mock_query.call_count, 1)
             self.assertEqual(mock_download_file.call_count, 0)
+
+
+class TestDataHandler(ApiHandlerTestCaseBase):
+
+    def setUp(self):
+        super().setUp()
+        self.notebook_file_id = '0123456789ab0123456789ab'
+        self.notebook_filename = '/path/to/test_notebook.ipynb'
+
+    def test_data_basic(self):
+        # Sample notebook data
+        notebook_data = {
+            "cells": [
+                {
+                    "cell_type": "code",
+                    "source": ["print('hello world')"],
+                    "execution_count": 1,
+                    "outputs": []
+                }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 4
+        }
+        notebook_json = json.dumps(notebook_data)
+
+        dummy_doc = {
+            'filename': self.notebook_filename,
+            'owner': 'test_user',
+            'signature_server_url': 'http://test.server',
+            'mtime': '2023-01-01T00:00:00Z'
+        }
+        result = {
+            'response': {
+                'docs': [dummy_doc],
+                'numFound': 1,
+                'start': 0,
+            },
+        }
+
+        # Mock the query and download_file methods
+        mock_query = mock.AsyncMock(return_value=(None, result))
+
+        def mock_download_file(file_id, file_obj):
+            file_obj.write(notebook_json.encode('utf-8'))
+            return mock.AsyncMock()
+
+        mock_download = mock.AsyncMock(side_effect=mock_download_file)
+        self.mock_nbsearchdb().query = mock_query
+        self.mock_nbsearchdb().download_file = mock_download
+
+        response = self.fetch(f'/v1/data/{self.notebook_file_id}')
+        self.assertEqual(response.code, 200)
+
+        response_data = json.loads(response.body.decode())
+        self.assertIn('notebook', response_data)
+        self.assertIn('metadata', response_data)
+
+        # Check notebook content
+        self.assertEqual(response_data['notebook'], notebook_data)
+
+        # Check metadata
+        metadata = response_data['metadata']
+        self.assertEqual(metadata['id'], self.notebook_file_id)
+        self.assertEqual(metadata['filename'], 'test_notebook.ipynb')
+        self.assertEqual(metadata['original_path'], self.notebook_filename)
+        self.assertEqual(metadata['owner'], 'test_user')
+        self.assertEqual(metadata['server'], 'http://test.server')
+        self.assertEqual(metadata['modified'], '2023-01-01T00:00:00Z')
+
+    def test_data_not_found(self):
+        result = {
+            'response': {
+                'docs': [],
+                'numFound': 0,
+                'start': 0,
+            },
+        }
+        mock_query = mock.AsyncMock(return_value=(None, result))
+        self.mock_nbsearchdb().query = mock_query
+
+        response = self.fetch(f'/v1/data/{self.notebook_file_id}')
+        self.assertEqual(response.code, 404)
+
+    def test_data_invalid_json(self):
+        dummy_doc = {
+            'filename': self.notebook_filename,
+        }
+        result = {
+            'response': {
+                'docs': [dummy_doc],
+                'numFound': 1,
+                'start': 0,
+            },
+        }
+
+        mock_query = mock.AsyncMock(return_value=(None, result))
+
+        def mock_download_file(file_id, file_obj):
+            file_obj.write(b'invalid json content')
+            return mock.AsyncMock()
+
+        mock_download = mock.AsyncMock(side_effect=mock_download_file)
+        self.mock_nbsearchdb().query = mock_query
+        self.mock_nbsearchdb().download_file = mock_download
+
+        response = self.fetch(f'/v1/data/{self.notebook_file_id}')
+        self.assertEqual(response.code, 400)
 
 
 if __name__ == '__main__':

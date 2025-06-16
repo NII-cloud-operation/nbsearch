@@ -7,7 +7,7 @@ import {
   MenuItem,
   SelectChangeEvent
 } from '@mui/material';
-import { FieldsQuery } from './fields';
+import { FieldsQuery, CompositeQuery } from './fields';
 import { LazySolrQuery, SolrQuery } from './base';
 import { RawSolrQuery } from './solr';
 import { Cell, isCodeCellModel, isMarkdownCellModel } from '@jupyterlab/cells';
@@ -167,15 +167,17 @@ class LazyWrappedQuery implements LazySolrQuery {
 export type QueryProps = {
   targetCell: Cell;
   location: CellLocation;
-  onChange?: (query: LazySolrQuery) => void;
+  onChange?: (query: LazySolrQuery, compositeQuery?: CompositeQuery) => void;
   fields?: IndexedColumnId[];
+  initialFieldsValue?: CompositeQuery;
 };
 
 export function Query({
   onChange,
   targetCell,
   location,
-  fields
+  fields,
+  initialFieldsValue
 }: QueryProps): JSX.Element {
   const [solrQuery, setSolrQuery] = useState<SolrQuery>({
     queryString: '_text_:*'
@@ -183,6 +185,9 @@ export function Query({
   const [fieldsQuery, setFieldsQuery] = useState<SolrQuery>({
     queryString: '_text_:*'
   });
+  const [fieldsCompositeQuery, setFieldsCompositeQuery] = useState<
+    CompositeQuery | undefined
+  >(undefined);
   const [cellQuery, setCellQuery] = useState<LazySolrQuery>({
     get: ({ cell: contextCell }) => {
       if (!contextCell) {
@@ -218,12 +223,13 @@ export function Query({
     [onChange]
   );
   const fieldsChanged = useCallback(
-    (query: SolrQuery) => {
+    (query: SolrQuery, compositeQuery: CompositeQuery) => {
       setFieldsQuery(query);
+      setFieldsCompositeQuery(compositeQuery);
       if (!onChange) {
         return;
       }
-      onChange(new LazyWrappedQuery(query));
+      onChange(new LazyWrappedQuery(query), compositeQuery);
     },
     [onChange]
   );
@@ -239,7 +245,8 @@ export function Query({
           ? cellQuery
           : index === TabIndex.Fields
           ? new LazyWrappedQuery(fieldsQuery)
-          : new LazyWrappedQuery(solrQuery)
+          : new LazyWrappedQuery(solrQuery),
+        index === TabIndex.Fields ? fieldsCompositeQuery : undefined
       );
     },
     [fieldsQuery, solrQuery, onChange]
@@ -275,7 +282,11 @@ export function Query({
         />
       </TabPanel>
       <TabPanel id={TabIndex.Fields} value={tabIndex}>
-        <FieldsQuery fields={fields} onChange={fieldsChanged} />
+        <FieldsQuery
+          fields={fields}
+          onChange={fieldsChanged}
+          initialValue={initialFieldsValue}
+        />
       </TabPanel>
       <TabPanel id={TabIndex.Solr} value={tabIndex}>
         <RawSolrQuery onChange={solrChanged} query={solrQuery.queryString} />

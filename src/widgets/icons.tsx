@@ -15,7 +15,9 @@ function extractSvgString(icon: Icon): string {
 </svg>`;
 }
 
+export const nbsearchIcon = extractSvgString(faMagnifyingGlass);
+
 export const searchIcon = new LabIcon({
   name: 'nbsearch::notebooksearch',
-  svgstr: extractSvgString(faMagnifyingGlass)
+  svgstr: nbsearchIcon
 });
