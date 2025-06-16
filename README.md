@@ -110,6 +110,19 @@ c.LocalSource.server = 'http://localhost:8888/'
 * `c.LocalSource.base_dir` - Notebook directory to be searchable
 * `c.LocalSource.server` - URL of my server, used to identify the notebooks on this server(default: http://localhost:8888/)
 
+### Additional Settings for Magic Commands
+
+To enable the nbsearch magic commands functionality, add the following configuration:
+
+```
+# Enable the JupyterLab extension for nbsearch magic commands
+c.JupyterNotebookApp.expose_app_in_browser = True
+c.LabApp.expose_app_in_browser = True
+```
+
+* `c.JupyterNotebookApp.expose_app_in_browser` - Enables browser exposure for Jupyter Notebook app (required for magic commands)
+* `c.LabApp.expose_app_in_browser` - Enables browser exposure for JupyterLab app (required for magic commands)
+
 ## Usage
 
 ### Add indexes of notebooks to Solr
