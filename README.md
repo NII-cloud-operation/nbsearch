@@ -151,6 +151,8 @@ The NBSearch pane allows searching of cells. You can search for preceding and su
 
 The `%%nbsearch` magic command provides a convenient way to search and insert notebook cells directly within your notebook.
 
+![NBSearch Magic Command](./images/magic-command.gif)
+
 #### Simple String Query
 
 ```
