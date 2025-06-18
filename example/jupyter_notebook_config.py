@@ -2,6 +2,10 @@
 import os
 import tempfile
 
+# Enable the JupyterLab extension for nbsearch magic commands
+c.JupyterNotebookApp.expose_app_in_browser = True
+c.LabApp.expose_app_in_browser = True
+
 def _run_solr_proxy(port):
     conf = tempfile.NamedTemporaryFile(mode='w', delete=False)
     conf.write('''
