@@ -1,5 +1,6 @@
 import React from 'react';
-import { TableRow, TableCell, Link } from '@mui/material';
+import { TableRow, TableCell, Link, Button } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 
 export enum IndexedColumnId {
   FullText = '_text_',
@@ -71,6 +72,8 @@ export type ResultProps = {
   columns: (StoredColumnId | StoredColumnId[])[];
   data: ResultEntity;
   onSelect?: (result: ResultEntity) => void;
+  onAdd?: (result: ResultEntity) => void;
+  showAddButton?: boolean;
   maxLength?: number;
 };
 
@@ -122,12 +125,31 @@ function renderValue(
   return <div>{value}</div>;
 }
 
-export function Result({ columns, data, onSelect, maxLength }: ResultProps) {
+export function Result({
+  columns,
+  data,
+  onSelect,
+  onAdd,
+  showAddButton,
+  maxLength
+}: ResultProps) {
   return (
     <TableRow>
       {columns.map(column => (
         <TableCell>{renderValue(data, column, onSelect, maxLength)}</TableCell>
       ))}
+      {showAddButton && (
+        <TableCell>
+          <Button
+            size="small"
+            onClick={() => onAdd?.(data)}
+            startIcon={<AddIcon />}
+            variant="outlined"
+          >
+            Add
+          </Button>
+        </TableCell>
+      )}
     </TableRow>
   );
 }

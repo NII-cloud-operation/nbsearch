@@ -106,7 +106,7 @@ export function SearchWidget({
     );
   }, [currentNotebookPanel, currentCell, notebookManager]);
   const queryFactory = useCallback(
-    (onChange: (query: LazySolrQuery) => void) => {
+    (onChange: (query: LazySolrQuery) => void, onSearch?: () => void) => {
       if (!currentCell) {
         return null;
       }
@@ -115,6 +115,7 @@ export function SearchWidget({
           targetCell={currentCell}
           location={currentCellLocation}
           onChange={onChange}
+          onSearch={onSearch}
           fields={searchFields}
         ></Query>
       );

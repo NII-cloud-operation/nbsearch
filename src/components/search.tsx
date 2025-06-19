@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { Box, Button, TableContainer } from '@mui/material';
 
 import { ResultEntity } from './result/result';
@@ -25,37 +25,47 @@ export type SearchProps = {
   columns: ResultColumn[];
   onSearch?: (query: SearchQuery, finished: () => void) => void;
   onResultSelect?: (result: ResultEntity) => void;
+  onResultAdd?: (result: ResultEntity) => void;
+  showAddButton?: boolean;
   defaultQuery: SolrQuery;
   queryFactory: (
-    onChange: (query: LazySolrQuery) => void
+    onChange: (query: LazySolrQuery) => void,
+    onSearch?: () => void
   ) => React.ReactNode | null;
   queryContext: SolrQueryContext;
   readyToSearch?: boolean;
+  autoSearch?: boolean;
   start?: number;
   limit?: number;
   numFound?: number;
   results?: ResultEntity[];
   error?: SearchError;
+  onClosed?: () => void;
 };
 
 export function Search({
   columns,
   onSearch,
   onResultSelect,
+  onResultAdd,
+  showAddButton,
   start,
   limit,
   numFound,
   results,
   error,
   readyToSearch,
+  autoSearch,
   defaultQuery,
   queryFactory,
-  queryContext
+  queryContext,
+  onClosed
 }: SearchProps): JSX.Element {
   const [solrQuery, setSolrQuery] = useState<LazySolrQuery | null>(null);
   const [sortQuery, setSortQuery] = useState<SortQuery | null>(null);
   const [pageQuery, setPageQuery] = useState<PageQuery | null>(null);
   const [searching, setSearching] = useState<boolean>(false);
+  const [hasAutoSearched, setHasAutoSearched] = useState<boolean>(false);
   const searchQuery = useMemo(() => {
     const r: SearchQuery = Object.assign(
       {},
@@ -88,6 +98,14 @@ export function Search({
   const clicked = useCallback(() => {
     callSearch(searchQuery);
   }, [callSearch, searchQuery]);
+
+  // Auto-search on first render if autoSearch is enabled
+  useEffect(() => {
+    if (autoSearch && !hasAutoSearched && onSearch) {
+      setHasAutoSearched(true);
+      callSearch(searchQuery);
+    }
+  }, [autoSearch, hasAutoSearched, onSearch, callSearch, searchQuery]);
   const sorted = useCallback(
     (sortQuery: SortQuery) => {
       setSortQuery(sortQuery);
@@ -107,7 +125,7 @@ export function Search({
 
   return (
     <Box sx={{ padding: '1em' }}>
-      {queryFactory(solrQueryChanged)}
+      {queryFactory(solrQueryChanged, clicked)}
       <Box className="nbsearch-search-execute">
         {error && (
           <strong className="nbsearch-search-error">{error.message}</strong>
@@ -119,6 +137,11 @@ export function Search({
         >
           {!searching ? 'Search' : 'Searching...'}
         </Button>
+        {onClosed && (
+          <Button variant="outlined" onClick={onClosed} sx={{ ml: 1 }}>
+            Close
+          </Button>
+        )}
       </Box>
       <Page
         start={start}
@@ -131,6 +154,8 @@ export function Search({
             columns={columns}
             onColumnSort={sorted}
             onResultSelect={onResultSelect}
+            onResultAdd={onResultAdd}
+            showAddButton={showAddButton}
             data={results}
             maxLength={COLUMN_MAX_LENGTH}
           />

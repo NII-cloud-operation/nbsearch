@@ -165,22 +165,30 @@ export type CompositeQuery = {
 };
 
 export type FieldsQueryProps = {
-  onChange?: (query: SolrQuery) => void;
+  onChange?: (query: SolrQuery, compositeQuery: CompositeQuery) => void;
+  onSearch?: () => void;
   fields?: IndexedColumnId[];
+  initialValue?: CompositeQuery;
 };
 
 export function FieldsQuery({
   onChange,
-  fields: customFields
+  onSearch,
+  fields: customFields,
+  initialValue
 }: FieldsQueryProps): JSX.Element {
-  const [composition, setComposition] = useState<Composition>(Composition.And);
+  const [composition, setComposition] = useState<Composition>(
+    initialValue?.composition ?? Composition.And
+  );
   const [selectedField, setSelectedField] = useState<Field | null>(null);
-  const [fieldQueries, setFieldQueries] = useState<FieldQuery[]>([
-    {
-      target: IndexedColumnId.FullText,
-      query: '*'
-    }
-  ]);
+  const [fieldQueries, setFieldQueries] = useState<FieldQuery[]>(
+    initialValue?.fields ?? [
+      {
+        target: IndexedColumnId.FullText,
+        query: '*'
+      }
+    ]
+  );
 
   const fields = useMemo(() => {
     const splittedCustomFields = customFields
@@ -221,12 +229,19 @@ export function FieldsQuery({
       const solrQuery = newQueries
         .map(field => `${field.target}:${field.query}`)
         .join(` ${composition} `);
+      const compositeQuery: CompositeQuery = {
+        composition,
+        fields: newQueries
+      };
       if (!onChange) {
         return;
       }
-      onChange({
-        queryString: solrQuery
-      });
+      onChange(
+        {
+          queryString: solrQuery
+        },
+        compositeQuery
+      );
     },
     [onChange]
   );
@@ -309,7 +324,16 @@ export function FieldsQuery({
         {fieldQueries.map((query, index) => {
           const field = FIELDS.find(field => field.id === query.target);
           return (
-            <Box key={index} className="nbsearch-query-fields-value">
+            <Box
+              key={index}
+              className="nbsearch-query-fields-value"
+              sx={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 1,
+                mb: 2
+              }}
+            >
               <TextField
                 label={field?.label}
                 helperText={
@@ -318,13 +342,20 @@ export function FieldsQuery({
                     : 'Solr Query: e.g. *'
                 }
                 defaultValue={query.query}
+                fullWidth
                 onChange={(
                   event: ChangeEvent<HTMLTextAreaElement | HTMLInputElement>
                 ) => updateFieldQueriesQuery(index, event.target.value)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' && onSearch) {
+                    onSearch();
+                  }
+                }}
               />
               <Button
                 onClick={() => deleteFieldQueries(index)}
                 disabled={fieldQueries.length <= 1}
+                sx={{ minWidth: 'auto', mt: 1 }}
               >
                 <DeleteIcon />
               </Button>
@@ -333,7 +364,15 @@ export function FieldsQuery({
         })}
       </Box>
       {defaultField !== undefined && (
-        <Box className="nbsearch-query-fields-add">
+        <Box
+          className="nbsearch-query-fields-add"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            mt: 1
+          }}
+        >
           <Button onClick={() => addFieldQueries()}>
             <AddIcon />
           </Button>

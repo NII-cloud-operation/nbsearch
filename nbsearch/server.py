@@ -9,6 +9,7 @@ from .v1.handlers import (
     NBSEARCH_TMP,
     SearchHandler,
     ImportHandler,
+    DataHandler,
 )
 
 
@@ -35,6 +36,7 @@ def get_api_handlers(parent_app, base_dir):
     return [
         (r"/v1/(?P<target>[^\/]+)/search", SearchHandler, handler_settings),
         (r"/v1/import(?P<path>/.+)?/(?P<id>[^\/]+)", ImportHandler, handler_settings),
+        (r"/v1/data/(?P<id>[^\/]+)", DataHandler, handler_settings),
     ]
 
 

@@ -110,6 +110,19 @@ c.LocalSource.server = 'http://localhost:8888/'
 * `c.LocalSource.base_dir` - Notebook directory to be searchable
 * `c.LocalSource.server` - URL of my server, used to identify the notebooks on this server(default: http://localhost:8888/)
 
+### Additional Settings for Magic Commands
+
+To enable the nbsearch magic commands functionality, add the following configuration:
+
+```
+# Enable the JupyterLab extension for nbsearch magic commands
+c.JupyterNotebookApp.expose_app_in_browser = True
+c.LabApp.expose_app_in_browser = True
+```
+
+* `c.JupyterNotebookApp.expose_app_in_browser` - Enables browser exposure for Jupyter Notebook app (required for magic commands)
+* `c.LabApp.expose_app_in_browser` - Enables browser exposure for JupyterLab app (required for magic commands)
+
 ## Usage
 
 ### Add indexes of notebooks to Solr
@@ -133,6 +146,51 @@ To search the Cell, you can use the NBSearch search button.
 The NBSearch pane allows searching of cells. You can search for preceding and subsequent cells using MEME and add it to the current Notebook.
 
 ![NBSearch pane](./images/search-cell.gif)
+
+### Using %%nbsearch Magic Command
+
+The `%%nbsearch` magic command provides a convenient way to search and insert notebook cells directly within your notebook.
+
+![NBSearch Magic Command](./images/magic-command.gif)
+
+#### Simple String Query
+
+```
+%%nbsearch
+ansible hadoop
+```
+
+This executes a full-text search for "ansible hadoop" and opens an interactive search interface where you can browse results and select sections to insert.
+
+#### YAML Query with Multiple Criteria
+
+```
+%%nbsearch
+query:
+  composition: AND
+  keyword:
+    source: "operationhub"
+    outputs: "success"
+```
+
+This searches for notebooks that contain the term "operationhub" .
+
+#### Automatic Updates After Cell Insertion
+
+When you select and insert sections from search results, the magic command automatically updates to include the search metadata:
+
+```
+# %%nbsearch
+# query:
+#   composition: AND
+#   keyword:
+#     source: matplotlib
+#     lc_cell_memes: fc68b4b4-2927-11e9-b46c-0242ac110002
+# sections:
+#   - "# Libraries"
+```
+
+The commented-out lines preserve your search criteria and selected sections. You can uncomment and re-execute to repeat the same search or modify the criteria for new searches. When re-executing, if cells with the same MEME sequence already exist after the current cell, the system will update their content and metadata instead of inserting duplicate cells.
 
 ## Uninstall
 
