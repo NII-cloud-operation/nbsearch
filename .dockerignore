@@ -1,0 +1,49 @@
+# Build artifacts
+nbsearch/labextension/
+lib/
+node_modules/
+*.egg-info/
+__pycache__/
+
+# Version control
+.git/
+.github/
+
+# Development tools
+.vscode/
+.virtual_documents/
+.ipynb_checkpoints/
+.pytest_cache/
+.yarn/
+
+# Python cache
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# Test artifacts
+junit.xml
+.pytest_cache/
+
+# Temporary files
+*.log
+*.tmp
+*~
+.DS_Store
+
+# Notebooks
+*.ipynb
+!example/*.ipynb
+
+# Other temp directories
+nbsearch-tmp/
+binder/
