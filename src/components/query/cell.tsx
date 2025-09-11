@@ -170,7 +170,6 @@ export type QueryProps = {
   onChange?: (query: LazySolrQuery, compositeQuery?: CompositeQuery) => void;
   onSearch?: () => void;
   fields?: IndexedColumnId[];
-  initialFieldsValue?: CompositeQuery;
 };
 
 export function Query({
@@ -178,8 +177,7 @@ export function Query({
   onSearch,
   targetCell,
   location,
-  fields,
-  initialFieldsValue
+  fields
 }: QueryProps): JSX.Element {
   const [solrQuery, setSolrQuery] = useState<SolrQuery>({
     queryString: '_text_:*'
@@ -288,7 +286,7 @@ export function Query({
           fields={fields}
           onChange={fieldsChanged}
           onSearch={onSearch}
-          initialValue={initialFieldsValue}
+          value={fieldsCompositeQuery}
         />
       </TabPanel>
       <TabPanel id={TabIndex.Solr} value={tabIndex}>

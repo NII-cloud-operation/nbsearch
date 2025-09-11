@@ -51,7 +51,7 @@ const helperTexts: { [key in HelperTextType]: string } = {
   [HelperTextType.DateTime]: 'Solr DateTime Query: e.g. [NOW-1YEAR TO NOW]'
 };
 
-const ALL_FIELDS: Field[] = [
+export const ALL_FIELDS: Field[] = [
   {
     id: IndexedColumnId.FullText,
     label: 'Full text search'
@@ -168,27 +168,28 @@ export type FieldsQueryProps = {
   onChange?: (query: SolrQuery, compositeQuery: CompositeQuery) => void;
   onSearch?: () => void;
   fields?: IndexedColumnId[];
-  initialValue?: CompositeQuery;
+  value?: CompositeQuery;
 };
 
 export function FieldsQuery({
   onChange,
   onSearch,
   fields: customFields,
-  initialValue
+  value
 }: FieldsQueryProps): JSX.Element {
-  const [composition, setComposition] = useState<Composition>(
-    initialValue?.composition ?? Composition.And
-  );
+
+  // For controlled component, always use value from props
+  // If no value provided, use defaults
+  const composition = value?.composition ?? Composition.And;
+  const fieldQueries = value?.fields ?? [
+    {
+      target: IndexedColumnId.FullText,
+      query: '*'
+    }
+  ];
+
   const [selectedField, setSelectedField] = useState<Field | null>(null);
-  const [fieldQueries, setFieldQueries] = useState<FieldQuery[]>(
-    initialValue?.fields ?? [
-      {
-        target: IndexedColumnId.FullText,
-        query: '*'
-      }
-    ]
-  );
+
 
   const fields = useMemo(() => {
     const splittedCustomFields = customFields
@@ -246,56 +247,47 @@ export function FieldsQuery({
     [onChange]
   );
   const updateFieldQueriesQuery = useCallback(
-    (index: number, value: string) => {
-      const newQueries: FieldQuery[] = fieldQueries.map(q =>
-        Object.assign({}, q)
+    (index: number, newValue: string) => {
+      const newQueries: FieldQuery[] = fieldQueries.map((q, i) =>
+        i === index ? { ...q, query: newValue } : { ...q }
       );
-      newQueries[index].query = value;
-      setFieldQueries(newQueries);
       notifyQueryChange(newQueries, composition);
     },
-    [fieldQueries, composition]
+    [fieldQueries, composition, notifyQueryChange]
   );
   const deleteFieldQueries = useCallback(
     (index: number) => {
-      const newQueries: FieldQuery[] = fieldQueries.map(q =>
-        Object.assign({}, q)
-      );
-      newQueries.splice(index, 1);
-      setFieldQueries(newQueries);
+      const newQueries: FieldQuery[] = fieldQueries.filter((_, i) => i !== index);
       notifyQueryChange(newQueries, composition);
     },
-    [fieldQueries, composition]
+    [fieldQueries, composition, notifyQueryChange]
   );
   const addFieldQueries = useCallback(() => {
     const newField = selectedField || defaultField;
     if (!newField) {
       return;
     }
-    const newQueries: FieldQuery[] = fieldQueries.map(q =>
-      Object.assign({}, q)
-    );
-    newQueries.push({
-      target: newField.id,
-      query: '*'
-    });
-    setFieldQueries(newQueries);
+    const newQueries: FieldQuery[] = [
+      ...fieldQueries,
+      {
+        target: newField.id,
+        query: '*'
+      }
+    ];
     setSelectedField(
       FIELDS.find(
         field =>
-          !fieldQueries.map(fq => fq.target).includes(field.id) &&
-          newField.id !== field.id
+          !newQueries.map(fq => fq.target).includes(field.id)
       ) || null
     );
     notifyQueryChange(newQueries, composition);
-  }, [fieldQueries, composition, defaultField, selectedField, FIELDS]);
+  }, [fieldQueries, composition, defaultField, selectedField, FIELDS, notifyQueryChange]);
   const compositionChanged = useCallback(
     (event: SelectChangeEvent) => {
       const changed = event.target.value as Composition;
-      setComposition(changed);
       notifyQueryChange(fieldQueries, changed);
     },
-    [fieldQueries]
+    [fieldQueries, notifyQueryChange]
   );
   const fieldChanged = useCallback(
     (event: SelectChangeEvent) => {
@@ -341,7 +333,7 @@ export function FieldsQuery({
                     ? helperTexts[field?.helperTextType]
                     : 'Solr Query: e.g. *'
                 }
-                defaultValue={query.query}
+                value={query.query}
                 fullWidth
                 onChange={(
                   event: ChangeEvent<HTMLTextAreaElement | HTMLInputElement>

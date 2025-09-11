@@ -27,6 +27,8 @@ export class CellExtension
     InsertedCell
   >(this);
 
+  private initializedCells = new Set<string>();
+
   constructor(
     notebookTracker: INotebookTracker,
     notebookManager: NotebookManager
@@ -50,6 +52,10 @@ export class CellExtension
             if (!isAttached) {
               return;
             }
+            // Check if cell has already been initialized
+            if (this.initializedCells.has(cellModel.id)) {
+              return;
+            }
             if (!panel.content.model) {
               throw new Error('No notebook model');
             }
@@ -68,11 +74,15 @@ export class CellExtension
               });
             }
             const w = this.initCell(panel, cell as Cell);
-            this.notebookManager.registerCell(
-              panel.content.id,
-              cellModel.id,
-              w
-            );
+            if (w) {
+              this.notebookManager.registerCell(
+                panel.content.id,
+                cellModel.id,
+                w
+              );
+              // Mark cell as initialized
+              this.initializedCells.add(cellModel.id);
+            }
           });
         });
       }
@@ -90,13 +100,20 @@ export class CellExtension
   }
 
   private initCell(notebook: NotebookPanel, cell: Cell) {
+    // Check if widget already exists in DOM
+    const existingWidget = cell.node.querySelector('.nbsearch-cell-widget');
+    if (existingWidget) {
+      return null;
+    }
     const w = buildCellCandidateWidget(this.notebookTracker, notebook, cell, {
       emit: insertedCell => {
         this.lastInsertedCell = insertedCell;
         this.resultAppliedSignal.emit(insertedCell);
       }
     });
-    Widget.attach(w.getWidget(), cell.node);
+    const widget = w.getWidget();
+    widget.addClass('nbsearch-cell-widget');
+    Widget.attach(widget, cell.node);
     return w;
   }
 }

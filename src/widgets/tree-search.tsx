@@ -6,6 +6,7 @@ import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { Box, ThemeProvider } from '@mui/material';
 
 import { theme } from '../themes/search';
+import { Platform, PlatformType } from './platform';
 import { searchIcon } from './icons';
 import { Search, SearchError, SearchQuery } from '../components/search';
 import { ResultEntity } from '../components/result/result';
@@ -19,10 +20,18 @@ import {
 import { IndexedColumnId } from '../components/result/result';
 import { ResultColumn } from '../components/result/results';
 import { SolrQuery } from '../components/query/base';
+import {
+  getSearchParamsFromURL,
+  urlParamsToSearchQuery,
+  searchQueryToURLParams,
+  updateURLSearchParams,
+  hasSearchParams
+} from '../utils/url-params';
 
 type SearchWidgetProps = {
   documents: IDocumentManager;
   notebookTracker?: INotebookTracker;
+  platform: Platform;
 };
 
 const resultColumns: ResultColumn[] = [
@@ -72,7 +81,20 @@ const searchFields: IndexedColumnId[] = resultColumns
   ]);
 
 export function SearchWidget(props: SearchWidgetProps): JSX.Element {
-  const { documents, notebookTracker } = props;
+  const { documents, notebookTracker, platform } = props;
+
+  // Get initial query from URL parameters
+  const initialQuery = useMemo(() => {
+    const urlParams = getSearchParamsFromURL();
+    if (urlParams.solrquery) {
+      const searchQuery = urlParamsToSearchQuery(urlParams);
+      return {
+        queryString: searchQuery.queryString || '_text_:*'
+      } as SolrQuery;
+    }
+    return undefined;
+  }, []);
+
   const [results, setResults] = useState<ResultEntity[]>([]);
   const [page, setPage] = useState<{
     start: number;
@@ -90,6 +112,12 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
   }, [currentNotebookPanel]);
   const searchHandler = useCallback(
     (query: SearchQuery, finished: () => void) => {
+      // Only update URL in Notebook 7 tree environment
+      if (platform.type === PlatformType.JUPYTER_NOTEBOOK7_TREE) {
+        const urlParams = searchQueryToURLParams(query);
+        updateURLSearchParams(urlParams);
+      }
+
       performSearch<NotebookSearchResponse>(SearchTarget.Notebook, query)
         .then(results => {
           setError(undefined);
@@ -139,13 +167,14 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
           columns={resultColumns}
           onSearch={searchHandler}
           onResultSelect={selected}
-          autoSearch={true}
-          defaultQuery={{
+          autoSearch={hasSearchParams()}
+          defaultQuery={initialQuery || {
             queryString: '_text_:*'
           }}
           queryFactory={(solrQueryChanged, onSearch) => (
             <Query
               fields={searchFields}
+              initialQuery={initialQuery}
               onChange={(query: SolrQuery) =>
                 solrQueryChanged({
                   get: () => query
@@ -168,9 +197,10 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
 
 export function buildTreeWidget(
   documents: IDocumentManager,
+  platform: Platform,
   withLabel: boolean
 ): ReactWidget {
-  const widget = ReactWidget.create(<SearchWidget documents={documents} />);
+  const widget = ReactWidget.create(<SearchWidget documents={documents} platform={platform} />);
   widget.id = 'nbsearch::notebooksearch';
   widget.title.icon = searchIcon;
   widget.title.caption = 'Search Notebook';

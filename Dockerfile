@@ -1,14 +1,24 @@
 FROM solr:8 AS solr
 
-FROM jupyter/scipy-notebook:latest
+FROM quay.io/jupyter/scipy-notebook:notebook-7.4.5
 
 USER root
 
 # Install OpenJDK and lsyncd
 RUN apt-get update && apt-get install -yq supervisor lsyncd uuid-runtime \
-    openjdk-11-jre gnupg curl tinyproxy netcat \
+    openjdk-11-jre gnupg curl tinyproxy netcat-openbsd \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20.x (required for JupyterLab extensions)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    apt-get clean && \
+    mkdir -p /.npm && \
+    chown jovyan:users -R /.npm && \
+    rm -rf /var/lib/apt/lists/*
+ENV NPM_CONFIG_PREFIX=/.npm
+ENV PATH=/.npm/bin/:${PATH}
 
 # Solr
 COPY --from=solr /opt /opt/
