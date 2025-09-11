@@ -523,9 +523,6 @@ export function MagicSearchWidget({
                 });
               }}
               onSearch={onSearch}
-              initialFieldsValue={
-                keyword ? getCompositeQueryFromKeyword(keyword) : undefined
-              }
             ></Query>
           )}
           queryContext={{}}

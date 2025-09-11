@@ -15,6 +15,9 @@ import { ToolbarExtension } from './extensions/toolbar';
 import { CellExtension } from './extensions/cell';
 import { NotebookManager } from './extensions/cellmanager';
 import { createMagicSearchWidget } from './widgets/magic-search';
+import { hasSearchParams } from './utils/url-params';
+import { ReactWidget } from '@jupyterlab/apputils';
+import { LOG_PREFIX } from './utils/constants';
 
 /**
  * Find the CodeCell that contains the magic command by cell content
@@ -65,7 +68,9 @@ function initWidgets(
   notebookTracker: INotebookTracker,
   settings: ISettingRegistry.ISettings,
   notebookManager: NotebookManager
-) {
+): ReactWidget | null {
+  let treeWidget: ReactWidget | null = null;
+
   if (platform.type !== PlatformType.JUPYTER_NOTEBOOK7_TREE) {
     app.shell.add(
       buildCellWidget(documents, notebookTracker, notebookManager),
@@ -76,14 +81,18 @@ function initWidgets(
     );
   }
   if (platform.type === PlatformType.JUPYTER_LAB_OR_NOTEBOOK7_NOTEBOOK) {
-    app.shell.add(buildTreeWidget(documents, false), 'left', { rank: 2000 });
+    treeWidget = buildTreeWidget(documents, platform, false);
+    app.shell.add(treeWidget, 'left', { rank: 2000 });
   } else if (platform.type === PlatformType.JUPYTER_NOTEBOOK7_TREE) {
     const { notebook7TreePanels } = platform;
     if (!notebook7TreePanels) {
       throw new Error('Failed to get notebook7TreePanels');
     }
-    notebook7TreePanels.tree.addWidget(buildTreeWidget(documents, true));
+    treeWidget = buildTreeWidget(documents, platform, true);
+    notebook7TreePanels.tree.addWidget(treeWidget);
   }
+
+  return treeWidget;
 }
 
 /**
@@ -100,7 +109,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
     documents: IDocumentManager,
     notebookTracker: INotebookTracker
   ) => {
-    console.log('JupyterLab extension nbsearch is activated!');
+    console.log(`${LOG_PREFIX} Extension activated!`);
     const notebookManager = new NotebookManager();
     app.docRegistry.addWidgetExtension('Notebook', new ToolbarExtension(app));
     app.docRegistry.addWidgetExtension(
@@ -114,7 +123,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       execute: (args: any) => {
         const { keyword, cellHeader, cellContent } = args;
         console.log(
-          'Executing NBSearch magic search with keyword:',
+          `${LOG_PREFIX} Executing magic search with keyword:`,
           keyword,
           'cellHeader:',
           cellHeader,
@@ -129,7 +138,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
           notebookTracker
         );
         if (!codeCell) {
-          console.error('No CodeCell found for the given cell content.');
+          console.error(`${LOG_PREFIX} No CodeCell found for the given cell content.`);
           return;
         }
 
@@ -145,7 +154,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
     initialize(app, settingRegistry, plugin.id)
       .then(({ platform, settings }) => {
-        initWidgets(
+        const treeWidget = initWidgets(
           app,
           platform,
           documents,
@@ -153,9 +162,37 @@ const plugin: JupyterFrontEndPlugin<void> = {
           settings,
           notebookManager
         );
+
+        // Check if URL has search parameters and activate the panel if needed
+        console.log(`${LOG_PREFIX} Checking URL params, hasSearchParams() =`, hasSearchParams());
+        if (hasSearchParams()) {
+          console.log(`${LOG_PREFIX} Will activate panel, platform type =`, platform.type);
+          if (platform.type === PlatformType.JUPYTER_LAB_OR_NOTEBOOK7_NOTEBOOK) {
+            // JupyterLab or Notebook7 in notebook view
+            setTimeout(() => {
+              app.shell.activateById('nbsearch::notebooksearch');
+              console.log(`${LOG_PREFIX} Panel activated due to URL search parameters`);
+            }, 500);
+          } else if (platform.type === PlatformType.JUPYTER_NOTEBOOK7_TREE && treeWidget) {
+            // Notebook7 tree view - activate the tab in the TabPanel
+            const { notebook7TreePanels } = platform;
+            if (notebook7TreePanels) {
+              setTimeout(() => {
+                // Find the index of our widget in the tab panel
+                const widgets = Array.from(notebook7TreePanels.tree.widgets);
+                const index = widgets.indexOf(treeWidget);
+                if (index >= 0) {
+                  // Activate the tab by setting currentIndex
+                  notebook7TreePanels.tree.currentIndex = index;
+                  console.log(`${LOG_PREFIX} Tab activated in Notebook7 tree view`);
+                }
+              }, 500);
+            }
+          }
+        }
       })
       .catch(reason => {
-        console.error('Failed to load settings for nbsearch.', reason);
+        console.error(`${LOG_PREFIX} Failed to load settings.`, reason);
       });
   }
 };

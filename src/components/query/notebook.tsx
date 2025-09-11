@@ -5,6 +5,7 @@ import { FieldsQuery, CompositeQuery } from './fields';
 import { SolrQuery } from './base';
 import { RawSolrQuery } from './solr';
 import { IndexedColumnId } from '../result/result';
+import { parseSolrToComposite, compositeToSolr } from '../../utils/query-parser';
 
 enum TabIndex {
   Fields,
@@ -15,7 +16,7 @@ export type QueryProps = {
   onChange?: (query: SolrQuery, compositeQuery?: CompositeQuery) => void;
   onSearch?: () => void;
   fields?: IndexedColumnId[];
-  initialFieldsValue?: CompositeQuery;
+  initialQuery?: SolrQuery;
 };
 
 type TabPanelProps = {
@@ -42,26 +43,52 @@ export function Query({
   onChange,
   onSearch,
   fields,
-  initialFieldsValue
+  initialQuery
 }: QueryProps): JSX.Element {
-  const [solrQuery, setSolrQuery] = useState<SolrQuery>({
-    queryString: '_text_:*'
-  });
-  const [fieldsQuery, setFieldsQuery] = useState<SolrQuery>({
-    queryString: '_text_:*'
-  });
+  const [solrQuery, setSolrQuery] = useState<SolrQuery>(
+    initialQuery || { queryString: '_text_:*' }
+  );
+  const [fieldsQuery, setFieldsQuery] = useState<SolrQuery>(
+    initialQuery || { queryString: '_text_:*' }
+  );
   const [fieldsCompositeQuery, setFieldsCompositeQuery] = useState<
     CompositeQuery | undefined
-  >(undefined);
-  const [tabIndex, setTabIndex] = useState<TabIndex>(TabIndex.Fields);
+  >(() => {
+    if (initialQuery?.queryString) {
+      return parseSolrToComposite(initialQuery.queryString) || undefined;
+    }
+    return undefined;
+  });
+  const [tabIndex, setTabIndex] = useState<TabIndex>(() => {
+    // If initial query can be converted to structured format, use Fields tab
+    // Otherwise, use Solr tab
+    if (initialQuery?.queryString) {
+      const composite = parseSolrToComposite(initialQuery.queryString);
+      return composite ? TabIndex.Fields : TabIndex.Solr;
+    }
+    return TabIndex.Fields;
+  });
 
   const solrChanged = useCallback(
     (query: SolrQuery) => {
       setSolrQuery(query);
+
+      // Try to parse Solr query to structured format
+      const compositeQuery = parseSolrToComposite(query.queryString);
+      if (compositeQuery) {
+        // If parseable, update fields query state
+        setFieldsQuery(query);
+        setFieldsCompositeQuery(compositeQuery);
+      } else {
+        // If not parseable, clear the composite query to avoid confusion
+        // but keep the fieldsQuery as is (user might switch back)
+        setFieldsCompositeQuery(undefined);
+      }
+
       if (!onChange) {
         return;
       }
-      onChange(query);
+      onChange(query, compositeQuery || undefined);
     },
     [onChange]
   );
@@ -69,6 +96,11 @@ export function Query({
     (query: SolrQuery, compositeQuery: CompositeQuery) => {
       setFieldsQuery(query);
       setFieldsCompositeQuery(compositeQuery);
+
+      // Also update Solr query to keep them in sync
+      const solrQueryString = compositeToSolr(compositeQuery);
+      setSolrQuery({ queryString: solrQueryString, q_op: query.q_op });
+
       if (!onChange) {
         return;
       }
@@ -88,8 +120,9 @@ export function Query({
         index === TabIndex.Fields ? fieldsCompositeQuery : undefined
       );
     },
-    [fieldsQuery, solrQuery, onChange]
+    [fieldsQuery, solrQuery, onChange, fieldsCompositeQuery]
   );
+
 
   return (
     <Box>
@@ -112,7 +145,7 @@ export function Query({
           fields={fields}
           onChange={fieldsChanged}
           onSearch={onSearch}
-          initialValue={initialFieldsValue}
+          value={fieldsCompositeQuery}
         />
       </TabPanel>
       <TabPanel id={TabIndex.Solr} value={tabIndex}>

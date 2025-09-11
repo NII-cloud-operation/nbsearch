@@ -67,6 +67,7 @@
         "@mui/icons-material": "^5.11.0",
         "@mui/material": "^5.11.0",
         "codemirror": "^5.65.16",
+        "liqe": "^3.8.3",
         "yaml": "^2.8.0"
     },
     "devDependencies": {
