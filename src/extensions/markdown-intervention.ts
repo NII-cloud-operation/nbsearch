@@ -2,7 +2,7 @@ import { MarkdownCell } from '@jupyterlab/cells';
 import { nbsearchIcon } from '../widgets/icons';
 
 export interface ISearchHandler {
-  performSearch: (query: string) => void;
+  performSearch: (query: string, timestamp: number) => void;
 }
 
 enum SearchType {
@@ -65,7 +65,9 @@ export class MarkdownIntervention {
 
     if (existingOutput && existingOutput.innerHTML.trim().length > 0) {
       // Clean up any existing intervention elements before processing
-      const existingLinks = existingOutput.querySelectorAll('.nbsearch-heading-link, .nbsearch-hashtag-link');
+      const existingLinks = existingOutput.querySelectorAll(
+        '.nbsearch-heading-link, .nbsearch-hashtag-link'
+      );
       existingLinks.forEach(el => el.remove());
 
       this.processRenderedContent(cell, hasHashtags, hasHeadings);
@@ -79,7 +81,9 @@ export class MarkdownIntervention {
         // Disconnect first to prevent any additional callbacks
         observer.disconnect();
         // Clean up any existing intervention elements before processing
-        const existingLinks = markdownOutput.querySelectorAll('.nbsearch-heading-link, .nbsearch-hashtag-link');
+        const existingLinks = markdownOutput.querySelectorAll(
+          '.nbsearch-heading-link, .nbsearch-hashtag-link'
+        );
         existingLinks.forEach(el => el.remove());
 
         this.processRenderedContent(cell, hasHashtags, hasHeadings);
@@ -295,7 +299,7 @@ export class MarkdownIntervention {
         break;
     }
 
-    this.searchHandler.performSearch(formattedQuery);
+    this.searchHandler.performSearch(formattedQuery, Date.now());
   }
 
   private fallbackSearch(query: string): void {

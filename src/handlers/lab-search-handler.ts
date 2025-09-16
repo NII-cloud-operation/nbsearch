@@ -9,14 +9,14 @@ export class LabSearchHandler implements ISearchHandler {
     this.app = app;
   }
 
-  performSearch(query: string): void {
+  performSearch(query: string, timestamp: number): void {
     // Activate the notebook search panel
     this.app.shell.activateById('nbsearch::notebooksearch');
 
     // Get the search widget instance and set the query
     const searchWidget = getSearchWidgetInstance();
     if (searchWidget) {
-      searchWidget.setSearchQuery(query);
+      searchWidget.setSearchQuery(query, timestamp);
     } else {
       console.warn('[nbsearch] Search widget not available');
     }
