@@ -18,6 +18,7 @@ import { createMagicSearchWidget } from './widgets/magic-search';
 import { hasSearchParams } from './utils/url-params';
 import { ReactWidget } from '@jupyterlab/apputils';
 import { LOG_PREFIX } from './utils/constants';
+import { LabSearchHandler } from './handlers/lab-search-handler';
 
 /**
  * Find the CodeCell that contains the magic command by cell content
@@ -111,11 +112,10 @@ const plugin: JupyterFrontEndPlugin<void> = {
   ) => {
     console.log(`${LOG_PREFIX} Extension activated!`);
     const notebookManager = new NotebookManager();
+    const cellExtension = new CellExtension(notebookTracker, notebookManager);
+
     app.docRegistry.addWidgetExtension('Notebook', new ToolbarExtension(app));
-    app.docRegistry.addWidgetExtension(
-      'Notebook',
-      new CellExtension(notebookTracker, notebookManager)
-    );
+    app.docRegistry.addWidgetExtension('Notebook', cellExtension);
 
     // Add command for magic-triggered search
     app.commands.addCommand('nbsearch:magic-search', {
@@ -162,6 +162,12 @@ const plugin: JupyterFrontEndPlugin<void> = {
           settings,
           notebookManager
         );
+
+        // Set up the search handler for JupyterLab
+        if (platform.type === PlatformType.JUPYTER_LAB_OR_NOTEBOOK7_NOTEBOOK) {
+          const labSearchHandler = new LabSearchHandler(app);
+          cellExtension.setSearchHandler(labSearchHandler);
+        }
 
         // Check if URL has search parameters and activate the panel if needed
         console.log(`${LOG_PREFIX} Checking URL params, hasSearchParams() =`, hasSearchParams());

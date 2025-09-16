@@ -77,8 +77,19 @@ const searchFields: IndexedColumnId[] = resultColumns
   .concat([
     IndexedColumnId.Cells,
     IndexedColumnId.Outputs,
-    IndexedColumnId.CellMemes
+    IndexedColumnId.CellMemes,
+    IndexedColumnId.SourceMarkdownHeading
   ]);
+
+export interface ISearchWidgetHandle {
+  setSearchQuery: (query: string) => void;
+}
+
+let searchWidgetInstance: ISearchWidgetHandle | null = null;
+
+export function getSearchWidgetInstance(): ISearchWidgetHandle | null {
+  return searchWidgetInstance;
+}
 
 export function SearchWidget(props: SearchWidgetProps): JSX.Element {
   const { documents, notebookTracker, platform } = props;
@@ -102,6 +113,7 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
     numFound: number;
   } | null>(null);
   const [error, setError] = useState<SearchError | undefined>(undefined);
+  const [externalQuery, setExternalQuery] = useState<string | null>(null);
   const [currentNotebookPanel, setCurrentNotebookPanel] =
     useState<NotebookPanel | null>(null);
   const currentNotebookName = useMemo(() => {
@@ -136,6 +148,20 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
     },
     []
   );
+
+  // Register the instance
+  useEffect(() => {
+    searchWidgetInstance = {
+      setSearchQuery: (query: string) => {
+        setExternalQuery(query);
+      }
+    };
+    return () => {
+      searchWidgetInstance = null;
+    };
+  }, []);
+
+
   const selected = useCallback(
     (result: ResultEntity) => {
       prepareNotebook('/nbsearch-tmp', result.id)
@@ -167,14 +193,19 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
           columns={resultColumns}
           onSearch={searchHandler}
           onResultSelect={selected}
-          autoSearch={hasSearchParams()}
+          autoSearch={hasSearchParams() || externalQuery !== null}
           defaultQuery={initialQuery || {
             queryString: '_text_:*'
           }}
           queryFactory={(solrQueryChanged, onSearch) => (
             <Query
+              key={externalQuery !== null ? `external-${externalQuery}` : 'initial'}
               fields={searchFields}
-              initialQuery={initialQuery}
+              initialQuery={
+                externalQuery !== null
+                  ? { queryString: externalQuery }
+                  : initialQuery
+              }
               onChange={(query: SolrQuery) =>
                 solrQueryChanged({
                   get: () => query

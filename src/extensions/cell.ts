@@ -7,11 +7,12 @@ import {
 } from '@jupyterlab/notebook';
 import { DocumentRegistry } from '@jupyterlab/docregistry';
 import { IDisposable, DisposableDelegate } from '@lumino/disposable';
-import { Cell } from '@jupyterlab/cells';
+import { Cell, MarkdownCell } from '@jupyterlab/cells';
 import { buildCellCandidateWidget } from '../widgets/cell-candidate';
 import { NotebookManager } from './cellmanager';
 import { Signal } from '@lumino/signaling';
 import { InsertedCell } from '../components/result/overlay';
+import { MarkdownIntervention, ISearchHandler } from './markdown-intervention';
 
 export class CellExtension
   implements DocumentRegistry.IWidgetExtension<NotebookPanel, INotebookModel>
@@ -19,6 +20,8 @@ export class CellExtension
   private notebookTracker: INotebookTracker;
 
   private notebookManager: NotebookManager;
+
+  private markdownIntervention: MarkdownIntervention;
 
   private lastInsertedCell: InsertedCell | null = null;
 
@@ -35,6 +38,11 @@ export class CellExtension
   ) {
     this.notebookTracker = notebookTracker;
     this.notebookManager = notebookManager;
+    this.markdownIntervention = new MarkdownIntervention();
+  }
+
+  setSearchHandler(searchHandler: ISearchHandler): void {
+    this.markdownIntervention.setSearchHandler(searchHandler);
   }
 
   createNew(
@@ -105,6 +113,12 @@ export class CellExtension
     if (existingWidget) {
       return null;
     }
+
+    // Initialize Markdown intervention for Markdown cells
+    if (cell.model.type === 'markdown') {
+      this.markdownIntervention.initMarkdownCell(cell as MarkdownCell);
+    }
+
     const w = buildCellCandidateWidget(this.notebookTracker, notebook, cell, {
       emit: insertedCell => {
         this.lastInsertedCell = insertedCell;
