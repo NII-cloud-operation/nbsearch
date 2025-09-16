@@ -111,7 +111,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
     documents: IDocumentManager,
     notebookTracker: INotebookTracker
   ) => {
-    console.log(`${LOG_PREFIX} Extension activated!`);
+    console.log('JupyterLab extension nbsearch is activated!');
     const notebookManager = new NotebookManager();
     const cellExtension = new CellExtension(notebookTracker, notebookManager);
 
