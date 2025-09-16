@@ -181,7 +181,6 @@ export function FieldsQuery({
   fields: customFields,
   value
 }: FieldsQueryProps): JSX.Element {
-
   // For controlled component, always use value from props
   // If no value provided, use defaults
   const composition = value?.composition ?? Composition.And;
@@ -193,7 +192,6 @@ export function FieldsQuery({
   ];
 
   const [selectedField, setSelectedField] = useState<Field | null>(null);
-
 
   const fields = useMemo(() => {
     const splittedCustomFields = customFields
@@ -261,7 +259,9 @@ export function FieldsQuery({
   );
   const deleteFieldQueries = useCallback(
     (index: number) => {
-      const newQueries: FieldQuery[] = fieldQueries.filter((_, i) => i !== index);
+      const newQueries: FieldQuery[] = fieldQueries.filter(
+        (_, i) => i !== index
+      );
       notifyQueryChange(newQueries, composition);
     },
     [fieldQueries, composition, notifyQueryChange]
@@ -280,12 +280,18 @@ export function FieldsQuery({
     ];
     setSelectedField(
       FIELDS.find(
-        field =>
-          !newQueries.map(fq => fq.target).includes(field.id)
+        field => !newQueries.map(fq => fq.target).includes(field.id)
       ) || null
     );
     notifyQueryChange(newQueries, composition);
-  }, [fieldQueries, composition, defaultField, selectedField, FIELDS, notifyQueryChange]);
+  }, [
+    fieldQueries,
+    composition,
+    defaultField,
+    selectedField,
+    FIELDS,
+    notifyQueryChange
+  ]);
   const compositionChanged = useCallback(
     (event: SelectChangeEvent) => {
       const changed = event.target.value as Composition;

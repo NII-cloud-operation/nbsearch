@@ -8,7 +8,11 @@ import {
   FieldToken,
   ImplicitFieldToken
 } from 'liqe';
-import { CompositeQuery, Composition, ALL_FIELDS } from '../components/query/fields';
+import {
+  CompositeQuery,
+  Composition,
+  ALL_FIELDS
+} from '../components/query/fields';
 import { IndexedColumnId } from '../components/result/result';
 
 // Create a set of supported field names for quick lookup
@@ -71,10 +75,12 @@ function astToComposite(ast: ParserAst | LiqeQuery): CompositeQuery | null {
 
     return {
       composition: Composition.Or,
-      fields: [{
-        target: fieldName as IndexedColumnId,
-        query: value
-      }]
+      fields: [
+        {
+          target: fieldName as IndexedColumnId,
+          query: value
+        }
+      ]
     };
   }
 
@@ -95,7 +101,10 @@ function astToComposite(ast: ParserAst | LiqeQuery): CompositeQuery | null {
       }
 
       // Check if compositions match
-      if (subComposite.composition !== composition && subComposite.fields.length > 1) {
+      if (
+        subComposite.composition !== composition &&
+        subComposite.fields.length > 1
+      ) {
         // Mixed compositions, cannot represent in simple CompositeQuery
         return null;
       }
@@ -162,7 +171,11 @@ export function canConvertToStructured(solrQuery: string): boolean {
  */
 export function simplifySolrQuery(solrQuery: string): string {
   // Simple _text_: queries can be simplified
-  if (solrQuery.startsWith('_text_:') && !solrQuery.includes(' AND ') && !solrQuery.includes(' OR ')) {
+  if (
+    solrQuery.startsWith('_text_:') &&
+    !solrQuery.includes(' AND ') &&
+    !solrQuery.includes(' OR ')
+  ) {
     return solrQuery.substring(7); // Remove "_text_:"
   }
   return solrQuery;
