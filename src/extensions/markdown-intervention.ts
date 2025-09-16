@@ -29,18 +29,19 @@ export class MarkdownIntervention {
     // Mark as connected
     this.cellConnections.set(cell, undefined);
 
-    // Connect to renderedChanged signal
-    cell.renderedChanged.connect((sender, rendered) => {
-      if (rendered) {
-        // Cell is now rendered, process it
+    // Wait for cell to be ready, then process it
+    cell.ready.then(() => {
+      if (cell.rendered) {
         this.processMarkdownCell(cell);
       }
     });
 
-    // Process immediately if already rendered
-    if (cell.rendered) {
-      this.processMarkdownCell(cell);
-    }
+    // Connect to renderedChanged signal for future updates
+    cell.renderedChanged.connect((sender, rendered) => {
+      if (rendered) {
+        this.processMarkdownCell(cell);
+      }
+    });
 
     // Clean up when cell is disposed
     cell.disposed.connect(() => {
@@ -59,26 +60,29 @@ export class MarkdownIntervention {
       return;
     }
 
-    let processed = false;
+    // Check immediately if already rendered with content
+    const existingOutput = cell.node.querySelector('.jp-MarkdownOutput');
 
-    // Create observer to watch for rendered content
+    if (existingOutput && existingOutput.innerHTML.trim().length > 0) {
+      // Clean up any existing intervention elements before processing
+      const existingLinks = existingOutput.querySelectorAll('.nbsearch-heading-link, .nbsearch-hashtag-link');
+      existingLinks.forEach(el => el.remove());
+
+      this.processRenderedContent(cell, hasHashtags, hasHeadings);
+      return;
+    }
+
+    // Set up observer to wait for content
     const observer = new MutationObserver(mutations => {
-      if (processed) {
-        return;
-      }
-
-      // Check if markdown is rendered
       const markdownOutput = cell.node.querySelector('.jp-MarkdownOutput');
-      if (markdownOutput) {
-        // Check if content is actually rendered
-        const hasContent = markdownOutput.querySelector(
-          'h1, h2, h3, h4, h5, h6, p, ul, ol'
-        );
-        if (hasContent) {
-          this.processRenderedContent(cell, hasHashtags, hasHeadings);
-          processed = true;
-          observer.disconnect();
-        }
+      if (markdownOutput && markdownOutput.innerHTML.trim().length > 0) {
+        // Disconnect first to prevent any additional callbacks
+        observer.disconnect();
+        // Clean up any existing intervention elements before processing
+        const existingLinks = markdownOutput.querySelectorAll('.nbsearch-heading-link, .nbsearch-hashtag-link');
+        existingLinks.forEach(el => el.remove());
+
+        this.processRenderedContent(cell, hasHashtags, hasHeadings);
       }
     });
 
@@ -88,19 +92,6 @@ export class MarkdownIntervention {
       subtree: true,
       attributes: false
     });
-
-    // Also check immediately in case already rendered
-    const existingOutput = cell.node.querySelector('.jp-MarkdownOutput');
-    if (existingOutput) {
-      const hasContent = existingOutput.querySelector(
-        'h1, h2, h3, h4, h5, h6, p, ul, ol'
-      );
-      if (hasContent) {
-        this.processRenderedContent(cell, hasHashtags, hasHeadings);
-        processed = true;
-        observer.disconnect();
-      }
-    }
 
     // Clean up observer when cell is disposed
     cell.disposed.connect(() => {
@@ -297,7 +288,7 @@ export class MarkdownIntervention {
     let formattedQuery = query;
     switch (searchType) {
       case SearchType.HASHTAG:
-        formattedQuery = `source:"${query}"`;
+        formattedQuery = `source__markdown__hashtags:"${query}"`;
         break;
       case SearchType.HEADING:
         formattedQuery = `source__markdown__heading:"${query}"`;

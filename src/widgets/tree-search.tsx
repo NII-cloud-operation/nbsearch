@@ -78,7 +78,8 @@ const searchFields: IndexedColumnId[] = resultColumns
     IndexedColumnId.Cells,
     IndexedColumnId.Outputs,
     IndexedColumnId.CellMemes,
-    IndexedColumnId.SourceMarkdownHeading
+    IndexedColumnId.SourceMarkdownHeading,
+    IndexedColumnId.SourceMarkdownHashtags
   ]);
 
 export interface ISearchWidgetHandle {

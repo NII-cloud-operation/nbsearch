@@ -24,6 +24,7 @@ export enum IndexedColumnId {
   SourceMarkdownHeading = 'source__markdown__heading',
   SourceMarkdownURL = 'source__markdown__url',
   SourceMarkdownCode = 'source__markdown__code',
+  SourceMarkdownHashtags = 'source__markdown__hashtags',
   Stdout = 'outputs__stdout',
   Stderr = 'outputs__stderr',
   ResultPlain = 'outputs__result_plain',
@@ -50,6 +51,7 @@ export type ResultEntity = {
   source__markdown__heading_count?: string;
   source__markdown__url?: string;
   source__markdown__operation_note?: string;
+  source__markdown__hashtags?: string;
   _version_: string;
   notebook_filename?: string;
   notebook_owner?: string;
