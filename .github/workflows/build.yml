@@ -4,7 +4,7 @@ on:
   push:
     branches: main
   pull_request:
-    branches: '*'
+    branches: '**'
 
 jobs:
   build:
@@ -23,7 +23,7 @@ jobs:
       run: |
         set -eux
         jlpm
-        jlpm lint:check
+        jlpm run eslint:check
         python -m pip install .
 
         jupyter labextension list 2>&1 | grep -ie "nbsearch.*OK"
