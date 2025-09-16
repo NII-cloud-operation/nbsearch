@@ -104,7 +104,29 @@ describe('Query Parser', () => {
         composition: Composition.Or,
         fields: [{
           target: IndexedColumnId.Owner,
-          query: 'John Doe'
+          query: '"John Doe"'
+        }]
+      });
+    });
+
+    it('should parse hashtag with quotes', () => {
+      const result = parseSolrToComposite('source:"#TEST"');
+      expect(result).toEqual({
+        composition: Composition.Or,
+        fields: [{
+          target: IndexedColumnId.Cells,
+          query: '"#TEST"'  // Should preserve quotes for exact match
+        }]
+      });
+    });
+
+    it('should parse heading with quotes', () => {
+      const result = parseSolrToComposite('source__markdown__heading:"Test Section"');
+      expect(result).toEqual({
+        composition: Composition.Or,
+        fields: [{
+          target: IndexedColumnId.SourceMarkdownHeading,
+          query: '"Test Section"'  // Should preserve quotes for exact match
         }]
       });
     });

@@ -161,7 +161,6 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
     };
   }, []);
 
-
   const selected = useCallback(
     (result: ResultEntity) => {
       prepareNotebook('/nbsearch-tmp', result.id)
@@ -194,12 +193,16 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
           onSearch={searchHandler}
           onResultSelect={selected}
           autoSearch={hasSearchParams() || externalQuery !== null}
-          defaultQuery={initialQuery || {
-            queryString: '_text_:*'
-          }}
+          defaultQuery={
+            externalQuery !== null
+              ? { queryString: externalQuery }
+              : initialQuery || { queryString: '_text_:*' }
+          }
           queryFactory={(solrQueryChanged, onSearch) => (
             <Query
-              key={externalQuery !== null ? `external-${externalQuery}` : 'initial'}
+              key={
+                externalQuery !== null ? `external-${externalQuery}` : 'initial'
+              }
               fields={searchFields}
               initialQuery={
                 externalQuery !== null
@@ -231,7 +234,9 @@ export function buildTreeWidget(
   platform: Platform,
   withLabel: boolean
 ): ReactWidget {
-  const widget = ReactWidget.create(<SearchWidget documents={documents} platform={platform} />);
+  const widget = ReactWidget.create(
+    <SearchWidget documents={documents} platform={platform} />
+  );
   widget.id = 'nbsearch::notebooksearch';
   widget.title.icon = searchIcon;
   widget.title.caption = 'Search Notebook';

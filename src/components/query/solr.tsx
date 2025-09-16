@@ -5,10 +5,11 @@ import { SolrQuery } from './base';
 export type RawSolrQueryProps = {
   query?: string;
   onChange?: (query: SolrQuery) => void;
+  onSearch?: () => void;
 };
 
 export function RawSolrQuery(props: RawSolrQueryProps): JSX.Element {
-  const { query, onChange } = props;
+  const { query, onChange, onSearch } = props;
   const changed = useCallback(
     (event: ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
       if (!onChange) {
@@ -27,6 +28,17 @@ export function RawSolrQuery(props: RawSolrQueryProps): JSX.Element {
     },
     [onChange]
   );
+
+  const handleKeyPress = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'Enter' && onSearch) {
+        event.preventDefault();
+        onSearch();
+      }
+    },
+    [onSearch]
+  );
+
   return (
     <Box>
       <TextField
@@ -37,6 +49,7 @@ export function RawSolrQuery(props: RawSolrQueryProps): JSX.Element {
         fullWidth={true}
         defaultValue={query}
         onChange={changed}
+        onKeyPress={handleKeyPress}
       />
     </Box>
   );

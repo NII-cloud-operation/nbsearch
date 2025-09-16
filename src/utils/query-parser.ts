@@ -59,7 +59,12 @@ function astToComposite(ast: ParserAst | LiqeQuery): CompositeQuery | null {
     let value = '';
     if (tagAst.expression.type === 'LiteralExpression') {
       const expr = tagAst.expression as LiteralExpressionToken;
-      value = String(expr.value);
+      // Preserve quotes for exact match
+      if (expr.quoted) {
+        value = `"${String(expr.value)}"`;
+      } else {
+        value = String(expr.value);
+      }
     } else if (tagAst.expression.type === 'EmptyExpression') {
       value = '*';
     }

@@ -2,7 +2,7 @@ import { SearchQuery } from '../components/search';
 import { SortOrder } from '../components/result/results';
 import { IndexedColumnId } from '../components/result/result';
 
-export interface URLSearchParams {
+export interface IURLSearchParams {
   solrquery?: string;
   sort?: string;
   start?: number;
@@ -13,9 +13,9 @@ export interface URLSearchParams {
   nbsearch?: string;
 }
 
-export function getSearchParamsFromURL(): URLSearchParams {
+export function getSearchParamsFromURL(): IURLSearchParams {
   const params = new URLSearchParams(window.location.search);
-  const result: URLSearchParams = {};
+  const result: IURLSearchParams = {};
 
   const solrquery = params.get('solrquery');
   if (solrquery) {
@@ -72,10 +72,10 @@ export function getSearchParamsFromURL(): URLSearchParams {
   return result;
 }
 
-export function updateURLSearchParams(params: URLSearchParams): void {
-  const url = new URL(window.location.href);
-  const searchParams = new URLSearchParams(url.search);
-
+export function applyIURLSearchParamsToURLSearchParams(
+  params: IURLSearchParams,
+  searchParams: URLSearchParams
+): URLSearchParams {
   // Update or remove each parameter
   if (params.solrquery !== undefined) {
     if (params.solrquery && params.solrquery !== '_text_:*') {
@@ -112,20 +112,28 @@ export function updateURLSearchParams(params: URLSearchParams): void {
   if (params.nbsearch !== undefined) {
     searchParams.set('nbsearch', params.nbsearch);
   }
+  return searchParams;
+}
+
+export function updateURLSearchParams(params: IURLSearchParams): void {
+  const url = new URL(window.location.href);
+  const searchParams = new URLSearchParams(url.search);
+  applyIURLSearchParamsToURLSearchParams(params, searchParams);
 
   url.search = searchParams.toString();
   window.history.replaceState({}, '', url.toString());
 }
 
-export function searchQueryToURLParams(query: SearchQuery): URLSearchParams {
-  const params: URLSearchParams = {
+export function searchQueryToURLParams(query: SearchQuery): IURLSearchParams {
+  const params: IURLSearchParams = {
     solrquery: query.queryString,
     nbsearch: 'yes'
   };
 
   if (query.sortQuery) {
     // Convert sort format: "column order" (e.g., "mtime desc")
-    const order = query.sortQuery.order === SortOrder.Ascending ? 'asc' : 'desc';
+    const order =
+      query.sortQuery.order === SortOrder.Ascending ? 'asc' : 'desc';
     params.sort = `${query.sortQuery.column} ${order}`;
   }
 
@@ -137,7 +145,9 @@ export function searchQueryToURLParams(query: SearchQuery): URLSearchParams {
   return params;
 }
 
-export function urlParamsToSearchQuery(params: URLSearchParams): Partial<SearchQuery> {
+export function urlParamsToSearchQuery(
+  params: IURLSearchParams
+): Partial<SearchQuery> {
   const query: Partial<SearchQuery> = {};
 
   if (params.solrquery) {
@@ -148,7 +158,7 @@ export function urlParamsToSearchQuery(params: URLSearchParams): Partial<SearchQ
     // Parse sort format: "column order" (e.g., "mtime desc")
     const sortParts = params.sort.split(' ');
     if (sortParts.length >= 2) {
-      const column = sortParts.slice(0, -1).join(' ');  // Handle column names with spaces
+      const column = sortParts.slice(0, -1).join(' '); // Handle column names with spaces
       const order = sortParts[sortParts.length - 1];
       query.sortQuery = {
         column: column as IndexedColumnId,

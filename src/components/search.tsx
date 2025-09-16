@@ -61,11 +61,13 @@ export function Search({
   queryContext,
   onClosed
 }: SearchProps): JSX.Element {
-  const [solrQuery, setSolrQuery] = useState<LazySolrQuery | null>(null);
+  const [solrQuery, setSolrQuery] = useState<LazySolrQuery | null>({
+    get: () => defaultQuery
+  });
   const [sortQuery, setSortQuery] = useState<SortQuery | null>(null);
   const [pageQuery, setPageQuery] = useState<PageQuery | null>(null);
   const [searching, setSearching] = useState<boolean>(false);
-  const [hasAutoSearched, setHasAutoSearched] = useState<boolean>(false);
+  const [lastAutoSearchQuery, setLastAutoSearchQuery] = useState<string>('');
   const searchQuery = useMemo(() => {
     const r: SearchQuery = Object.assign(
       {},
@@ -99,13 +101,33 @@ export function Search({
     callSearch(searchQuery);
   }, [callSearch, searchQuery]);
 
-  // Auto-search on first render if autoSearch is enabled
+  // Auto-search when query changes
   useEffect(() => {
-    if (autoSearch && !hasAutoSearched && onSearch) {
-      setHasAutoSearched(true);
-      callSearch(searchQuery);
+    if (
+      autoSearch &&
+      onSearch &&
+      defaultQuery.queryString !== lastAutoSearchQuery
+    ) {
+      setLastAutoSearchQuery(defaultQuery.queryString);
+      // Use defaultQuery directly for auto-search to avoid timing issues
+      const initialSearchQuery: SearchQuery = Object.assign({}, defaultQuery);
+      if (sortQuery) {
+        initialSearchQuery.sortQuery = sortQuery;
+      }
+      if (pageQuery) {
+        initialSearchQuery.pageQuery = pageQuery;
+      }
+      callSearch(initialSearchQuery);
     }
-  }, [autoSearch, hasAutoSearched, onSearch, callSearch, searchQuery]);
+  }, [
+    autoSearch,
+    lastAutoSearchQuery,
+    onSearch,
+    callSearch,
+    defaultQuery,
+    sortQuery,
+    pageQuery
+  ]);
   const sorted = useCallback(
     (sortQuery: SortQuery) => {
       setSortQuery(sortQuery);

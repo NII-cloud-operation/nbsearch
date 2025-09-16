@@ -1,11 +1,14 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { Box, Tabs, Tab } from '@mui/material';
 
 import { FieldsQuery, CompositeQuery } from './fields';
 import { SolrQuery } from './base';
 import { RawSolrQuery } from './solr';
 import { IndexedColumnId } from '../result/result';
-import { parseSolrToComposite, compositeToSolr } from '../../utils/query-parser';
+import {
+  parseSolrToComposite,
+  compositeToSolr
+} from '../../utils/query-parser';
 
 enum TabIndex {
   Fields,
@@ -69,6 +72,17 @@ export function Query({
     return TabIndex.Fields;
   });
 
+  // Call onChange on mount to notify parent of initial state
+  useEffect(() => {
+    if (onChange) {
+      const currentQuery =
+        tabIndex === TabIndex.Fields ? fieldsQuery : solrQuery;
+      const currentComposite =
+        tabIndex === TabIndex.Fields ? fieldsCompositeQuery : undefined;
+      onChange(currentQuery, currentComposite);
+    }
+  }, []); // Only run on mount
+
   const solrChanged = useCallback(
     (query: SolrQuery) => {
       setSolrQuery(query);
@@ -123,7 +137,6 @@ export function Query({
     [fieldsQuery, solrQuery, onChange, fieldsCompositeQuery]
   );
 
-
   return (
     <Box>
       <Tabs value={tabIndex} onChange={tabChanged}>
@@ -149,7 +162,11 @@ export function Query({
         />
       </TabPanel>
       <TabPanel id={TabIndex.Solr} value={tabIndex}>
-        <RawSolrQuery onChange={solrChanged} query={solrQuery.queryString} />
+        <RawSolrQuery
+          onChange={solrChanged}
+          query={solrQuery.queryString}
+          onSearch={onSearch}
+        />
       </TabPanel>
     </Box>
   );
