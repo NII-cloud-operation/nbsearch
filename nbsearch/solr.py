@@ -193,6 +193,12 @@ def markdown_to_solr_fields(markdown, prefix=''):
         r[f'{prefix}about'] = markdown
     if _contains_markdown(r, f'{prefix}emphasis', ['todo', 'tbd']):
         r[f'{prefix}todo'] = markdown
+
+    # Extract hashtags - let Solr's tokenizer handle validation
+    hashtags = [word for word in markdown.split() if word.startswith('#') and len(word) > 1]
+    if hashtags:
+        r[f'{prefix}hashtags'] = ' '.join(hashtags)
+
     return r
 
 def cell_to_solr_document(notebook_id, path, cell, cell_index, cells=None, notebook_attr=None):

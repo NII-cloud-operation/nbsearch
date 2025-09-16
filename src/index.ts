@@ -18,6 +18,8 @@ import { createMagicSearchWidget } from './widgets/magic-search';
 import { hasSearchParams } from './utils/url-params';
 import { ReactWidget } from '@jupyterlab/apputils';
 import { LOG_PREFIX } from './utils/constants';
+import { LabSearchHandler } from './handlers/lab-search-handler';
+import { Notebook7SearchHandler } from './handlers/notebook7-search-handler';
 
 /**
  * Find the CodeCell that contains the magic command by cell content
@@ -111,11 +113,10 @@ const plugin: JupyterFrontEndPlugin<void> = {
   ) => {
     console.log(`${LOG_PREFIX} Extension activated!`);
     const notebookManager = new NotebookManager();
+    const cellExtension = new CellExtension(notebookTracker, notebookManager);
+
     app.docRegistry.addWidgetExtension('Notebook', new ToolbarExtension(app));
-    app.docRegistry.addWidgetExtension(
-      'Notebook',
-      new CellExtension(notebookTracker, notebookManager)
-    );
+    app.docRegistry.addWidgetExtension('Notebook', cellExtension);
 
     // Add command for magic-triggered search
     app.commands.addCommand('nbsearch:magic-search', {
@@ -138,7 +139,9 @@ const plugin: JupyterFrontEndPlugin<void> = {
           notebookTracker
         );
         if (!codeCell) {
-          console.error(`${LOG_PREFIX} No CodeCell found for the given cell content.`);
+          console.error(
+            `${LOG_PREFIX} No CodeCell found for the given cell content.`
+          );
           return;
         }
 
@@ -163,17 +166,44 @@ const plugin: JupyterFrontEndPlugin<void> = {
           notebookManager
         );
 
+        // Set up the search handler
+        if (platform.type === PlatformType.JUPYTER_LAB_OR_NOTEBOOK7_NOTEBOOK) {
+          // Check if running in Notebook 7 or JupyterLab
+          if (app.name === 'Jupyter Notebook') {
+            // Notebook 7 in notebook view
+            const notebook7SearchHandler = new Notebook7SearchHandler();
+            cellExtension.setSearchHandler(notebook7SearchHandler);
+          } else {
+            // JupyterLab
+            const labSearchHandler = new LabSearchHandler(app);
+            cellExtension.setSearchHandler(labSearchHandler);
+          }
+        }
+
         // Check if URL has search parameters and activate the panel if needed
-        console.log(`${LOG_PREFIX} Checking URL params, hasSearchParams() =`, hasSearchParams());
+        console.log(
+          `${LOG_PREFIX} Checking URL params, hasSearchParams() =`,
+          hasSearchParams()
+        );
         if (hasSearchParams()) {
-          console.log(`${LOG_PREFIX} Will activate panel, platform type =`, platform.type);
-          if (platform.type === PlatformType.JUPYTER_LAB_OR_NOTEBOOK7_NOTEBOOK) {
+          console.log(
+            `${LOG_PREFIX} Will activate panel, platform type =`,
+            platform.type
+          );
+          if (
+            platform.type === PlatformType.JUPYTER_LAB_OR_NOTEBOOK7_NOTEBOOK
+          ) {
             // JupyterLab or Notebook7 in notebook view
             setTimeout(() => {
               app.shell.activateById('nbsearch::notebooksearch');
-              console.log(`${LOG_PREFIX} Panel activated due to URL search parameters`);
+              console.log(
+                `${LOG_PREFIX} Panel activated due to URL search parameters`
+              );
             }, 500);
-          } else if (platform.type === PlatformType.JUPYTER_NOTEBOOK7_TREE && treeWidget) {
+          } else if (
+            platform.type === PlatformType.JUPYTER_NOTEBOOK7_TREE &&
+            treeWidget
+          ) {
             // Notebook7 tree view - activate the tab in the TabPanel
             const { notebook7TreePanels } = platform;
             if (notebook7TreePanels) {
@@ -184,7 +214,9 @@ const plugin: JupyterFrontEndPlugin<void> = {
                 if (index >= 0) {
                   // Activate the tab by setting currentIndex
                   notebook7TreePanels.tree.currentIndex = index;
-                  console.log(`${LOG_PREFIX} Tab activated in Notebook7 tree view`);
+                  console.log(
+                    `${LOG_PREFIX} Tab activated in Notebook7 tree view`
+                  );
                 }
               }, 500);
             }

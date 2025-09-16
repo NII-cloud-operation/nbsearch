@@ -147,6 +147,12 @@ The NBSearch pane allows searching of cells. You can search for preceding and su
 
 ![NBSearch pane](./images/search-cell.gif)
 
+### Quick Search from Markdown Cells
+
+In Markdown cells, search icons (🔍) appear next to headings and hashtags. Clicking these icons instantly searches for notebooks containing the same heading or hashtag.
+
+![Quick Search from Markdown](./images/quick-search-markdown.gif)
+
 ### Using %%nbsearch Magic Command
 
 The `%%nbsearch` magic command provides a convenient way to search and insert notebook cells directly within your notebook.

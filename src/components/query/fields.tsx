@@ -137,6 +137,10 @@ export const ALL_FIELDS: Field[] = [
     label: 'Code in markdown cell'
   },
   {
+    id: IndexedColumnId.SourceMarkdownHashtags,
+    label: 'Hashtags in markdown cell'
+  },
+  {
     id: IndexedColumnId.Stdout,
     label: 'STDOUT of cell'
   },

@@ -67,7 +67,9 @@ const searchFields: IndexedColumnId[] = resultColumns
     IndexedColumnId.Stdout,
     IndexedColumnId.Stderr,
     IndexedColumnId.ResultPlain,
-    IndexedColumnId.ResultHTML
+    IndexedColumnId.ResultHTML,
+    IndexedColumnId.SourceMarkdownHeading,
+    IndexedColumnId.SourceMarkdownHashtags
   ]);
 
 export function SearchWidget({

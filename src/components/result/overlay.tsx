@@ -199,7 +199,12 @@ export function CellCandidateOverlay({
   useEffect(() => {
     const callback = () => {
       const { activeCell } = notebookTracker;
-      if (activeCell !== null && activeCell.model.id === cell.model.id) {
+      if (
+        activeCell &&
+        activeCell.model &&
+        cell.model &&
+        activeCell.model.id === cell.model.id
+      ) {
         return;
       }
       setResult(null);

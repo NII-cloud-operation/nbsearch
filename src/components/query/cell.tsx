@@ -290,7 +290,11 @@ export function Query({
         />
       </TabPanel>
       <TabPanel id={TabIndex.Solr} value={tabIndex}>
-        <RawSolrQuery onChange={solrChanged} query={solrQuery.queryString} />
+        <RawSolrQuery
+          onChange={solrChanged}
+          query={solrQuery.queryString}
+          onSearch={onSearch}
+        />
       </TabPanel>
     </Box>
   );

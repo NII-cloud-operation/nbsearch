@@ -48,6 +48,20 @@
       <tokenizer class="solr.StandardTokenizerFactory"/>
     </analyzer>
   </fieldType>
+  <!-- Hashtag field type based on Twitter/SNS rules:
+       - Pattern: #[letter][letter|number|underscore]*
+       - \p{L} matches any Unicode letter (including Japanese: Hiragana, Katakana, Kanji)
+       - \p{M} matches combining marks (diacritics)
+       - \p{Nd} matches decimal digits
+       - Examples: #TEST, #テスト, #日本語, #test_123, #2024年会議 (but not #123 alone)
+       - Uses Java regex (java.util.regex.Pattern) which fully supports Unicode
+  -->
+  <fieldType name="text_hashtag" class="solr.TextField" positionIncrementGap="100" autoGeneratePhraseQueries="false">
+    <analyzer>
+      <tokenizer class="solr.PatternTokenizerFactory" pattern="(#[\p{L}\p{M}][\p{L}\p{M}\p{Nd}_]*)" group="1"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+    </analyzer>
+  </fieldType>
 
   <field name="_version_" type="long" indexed="true" stored="false"/>
   <field name="id" type="string" multiValued="false" indexed="true" required="true" stored="true"/>
@@ -92,6 +106,8 @@
   <field name="source__markdown__todo" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
   <field name="source__markdown__about" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
   <field name="source" type="text_ja" multiValued="false" indexed="true" required="false" stored="false"/>
+  <!-- Field for storing hashtags extracted from markdown source text -->
+  <field name="source__markdown__hashtags" type="text_hashtag" multiValued="true" indexed="true" required="false" stored="true"/>
   <field name="outputs__stdout" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
   <field name="outputs__stderr" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>
   <field name="outputs__result_plain" type="text_ja" multiValued="false" indexed="true" required="false" stored="true"/>

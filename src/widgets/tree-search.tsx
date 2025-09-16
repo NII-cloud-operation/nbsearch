@@ -77,8 +77,20 @@ const searchFields: IndexedColumnId[] = resultColumns
   .concat([
     IndexedColumnId.Cells,
     IndexedColumnId.Outputs,
-    IndexedColumnId.CellMemes
+    IndexedColumnId.CellMemes,
+    IndexedColumnId.SourceMarkdownHeading,
+    IndexedColumnId.SourceMarkdownHashtags
   ]);
+
+export interface ISearchWidgetHandle {
+  setSearchQuery: (query: string, timestamp: number) => void;
+}
+
+let searchWidgetInstance: ISearchWidgetHandle | null = null;
+
+export function getSearchWidgetInstance(): ISearchWidgetHandle | null {
+  return searchWidgetInstance;
+}
 
 export function SearchWidget(props: SearchWidgetProps): JSX.Element {
   const { documents, notebookTracker, platform } = props;
@@ -102,6 +114,10 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
     numFound: number;
   } | null>(null);
   const [error, setError] = useState<SearchError | undefined>(undefined);
+  const [externalQuery, setExternalQuery] = useState<{
+    query: string;
+    timestamp: number;
+  } | null>(null);
   const [currentNotebookPanel, setCurrentNotebookPanel] =
     useState<NotebookPanel | null>(null);
   const currentNotebookName = useMemo(() => {
@@ -136,6 +152,19 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
     },
     []
   );
+
+  // Register the instance
+  useEffect(() => {
+    searchWidgetInstance = {
+      setSearchQuery: (query: string, timestamp: number) => {
+        setExternalQuery({ query, timestamp });
+      }
+    };
+    return () => {
+      searchWidgetInstance = null;
+    };
+  }, []);
+
   const selected = useCallback(
     (result: ResultEntity) => {
       prepareNotebook('/nbsearch-tmp', result.id)
@@ -167,14 +196,25 @@ export function SearchWidget(props: SearchWidgetProps): JSX.Element {
           columns={resultColumns}
           onSearch={searchHandler}
           onResultSelect={selected}
-          autoSearch={hasSearchParams()}
-          defaultQuery={initialQuery || {
-            queryString: '_text_:*'
-          }}
+          autoSearch={hasSearchParams() || externalQuery !== null}
+          defaultQuery={
+            externalQuery !== null
+              ? { queryString: externalQuery.query }
+              : initialQuery || { queryString: '_text_:*' }
+          }
           queryFactory={(solrQueryChanged, onSearch) => (
             <Query
+              key={
+                externalQuery !== null
+                  ? `external-${externalQuery.query}-${externalQuery.timestamp}`
+                  : 'initial'
+              }
               fields={searchFields}
-              initialQuery={initialQuery}
+              initialQuery={
+                externalQuery !== null
+                  ? { queryString: externalQuery.query }
+                  : initialQuery
+              }
               onChange={(query: SolrQuery) =>
                 solrQueryChanged({
                   get: () => query
@@ -200,7 +240,9 @@ export function buildTreeWidget(
   platform: Platform,
   withLabel: boolean
 ): ReactWidget {
-  const widget = ReactWidget.create(<SearchWidget documents={documents} platform={platform} />);
+  const widget = ReactWidget.create(
+    <SearchWidget documents={documents} platform={platform} />
+  );
   widget.id = 'nbsearch::notebooksearch';
   widget.title.icon = searchIcon;
   widget.title.caption = 'Search Notebook';
