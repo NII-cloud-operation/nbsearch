@@ -2,7 +2,7 @@
 
 [![Release](https://github.com/NII-cloud-operation/nbsearch/actions/workflows/release.yml/badge.svg)](https://github.com/NII-cloud-operation/nbsearch/actions/workflows/release.yml) [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/NII-cloud-operation/nbsearch/feature/lab?urlpath=lab)
 
-nbsearch extension provides search capabilities for Jupyter Notebooks, which you created. It supports search by MEME in addition to search by keywords and modified times like a search engine. Therefore, users can easily find cells of the same origin in sticky notes added by sidestickies.
+nbsearch extension provides search capabilities for Jupyter Notebooks, which you created. It supports search by MEME in addition to search by keywords and modified times like a search engine.
 
 ## Try it out on mybinder.org
 
@@ -21,7 +21,7 @@ The following software is installed in this environment.
   - [nblineage](https://github.com/NII-cloud-operation/Jupyter-LC_nblineage)
   - [lc_notebook_diff](https://github.com/NII-cloud-operation/Jupyter-LC_notebook_diff)
 
-If you create a Notebook file in this environment, it will be automatically indexed in Solr and you will be able to search for it using the Search. Please refer to the [Usage](#usage) section for more information.
+If you create a Notebook file in this environment, it will be automatically indexed in Solr and you will be able to search for it. Please refer to the [Usage](#usage) section for more information.
 
 > **Note**: It may take some time for Apache Solr and MinIO to start up. If your search fails, please wait a while and try again.
 
@@ -135,17 +135,9 @@ jupyter nbsearch update-index $CONDA_DIR/etc/jupyter/jupyter_notebook_config.py 
 
 ### Search for Notebooks
 
-To search the Notebook, you can use the NBSearch tab.
-The NBSearch tab allows you to search the Notebook. By clicking on the search result, you can check the contents of the Notebook.
+You can use the NBSearch tab to search for notebooks. By clicking on the search result, you can check the contents of the notebook.
 
 ![NBSearch tab](./images/search-notebook.gif)
-
-### Search for Cells
-
-To search the Cell, you can use the NBSearch search button.
-The NBSearch pane allows searching of cells. You can search for preceding and subsequent cells using MEME and add it to the current Notebook.
-
-![NBSearch pane](./images/search-cell.gif)
 
 ### Quick Search from Markdown Cells
 
@@ -153,9 +145,9 @@ In Markdown cells, search icons (🔍) appear next to headings and hashtags. Cli
 
 ![Quick Search from Markdown](./images/quick-search-markdown.gif)
 
-### Using %%nbsearch Magic Command
+### Search for Cells
 
-The `%%nbsearch` magic command provides a convenient way to search and insert notebook cells directly within your notebook.
+To search for cells and insert them into your notebook, use the `%%nbsearch` magic command. The magic command allows you to search for cells using keywords or MEME, select specific sections, and insert them directly into your notebook.
 
 First, load the nbsearch magic extension:
 ```python
@@ -185,7 +177,7 @@ query:
     outputs: "success"
 ```
 
-This searches for notebooks that contain the term "operationhub" .
+This searches for cells that contain both "operationhub" in the source and "success" in the outputs.
 
 #### Automatic Updates After Cell Insertion
 
@@ -197,12 +189,15 @@ When you select and insert sections from search results, the magic command autom
 #   composition: AND
 #   keyword:
 #     source: matplotlib
-#     lc_cell_memes: fc68b4b4-2927-11e9-b46c-0242ac110002
-# sections:
-#   - "# Libraries"
+# scope: section
+# range: after
+# memeFilter:
+#   previous: true
+#   next: false
+#   exactMatch: false
 ```
 
-The commented-out lines preserve your search criteria and selected sections. You can uncomment and re-execute to repeat the same search or modify the criteria for new searches. When re-executing, if cells with the same MEME sequence already exist after the current cell, the system will update their content and metadata instead of inserting duplicate cells.
+The commented-out lines preserve your search criteria and insertion settings (scope, range, MEME filter). You can uncomment and re-execute to repeat the same search or modify the criteria for new searches. When re-executing, if cells with the same MEME sequence already exist after the current cell, the system will update their content and metadata instead of inserting duplicate cells.
 
 ## Uninstall
 
@@ -222,9 +217,16 @@ The `jlpm` command is JupyterLab's pinned version of
 [yarn](https://yarnpkg.com/) that is installed with JupyterLab. You may use
 `yarn` or `npm` in lieu of `jlpm` below.
 
+#### Local Development with Docker Compose
+
+For local development, you can use Docker Compose to run Solr and MinIO:
+
 ```bash
 # Clone the repo to your local environment
 # Change directory to the nbsearch directory
+# Start Solr and MinIO
+docker compose up -d
+
 # Install package in development mode
 pip install -e "."
 # Link your development version of the extension with JupyterLab
@@ -240,7 +242,39 @@ You can watch the source directory and run JupyterLab at the same time in differ
 # Watch the source directory in one terminal, automatically rebuilding when needed
 jlpm watch
 # Run JupyterLab in another terminal
-jupyter lab
+jupyter lab --config=example/config_docker_compose.py
+```
+
+When using Docker Compose, Solr indexes are not automatically updated. You need to manually update the index:
+
+```bash
+# Update index for specific notebooks
+jupyter nbsearch update-index example/config_docker_compose.py local ./example/notebooks/01_About\ NII\ Extensions\ -\ NII謹製の機能拡張について.ipynb
+
+# Or update all notebooks in a directory
+jupyter nbsearch update-index example/config_docker_compose.py local
+```
+
+To stop Solr and MinIO:
+
+```bash
+docker compose down
+```
+
+#### Install without Docker Compose
+
+If you want to set up Solr and MinIO manually:
+
+```bash
+# Clone the repo to your local environment
+# Change directory to the nbsearch directory
+# Install package in development mode
+pip install -e "."
+# Link your development version of the extension with JupyterLab
+jupyter labextension develop . --overwrite
+jupyter server extension enable nbsearch
+# Rebuild extension Typescript source after making changes
+jlpm build
 ```
 
 With the watch command running, every saved change will immediately be built locally and available in your running JupyterLab. Refresh JupyterLab to load the change in your browser (you may need to wait several seconds for the extension to be rebuilt).

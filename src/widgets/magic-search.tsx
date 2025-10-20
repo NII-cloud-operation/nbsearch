@@ -6,7 +6,16 @@ import { INotebookTracker } from '@jupyterlab/notebook';
 import { CodeCell } from '@jupyterlab/cells';
 import { ISharedMarkdownCell, ISharedRawCell } from '@jupyter/ydoc';
 
-import { Box, ThemeProvider } from '@mui/material';
+import {
+  Box,
+  ThemeProvider,
+  Checkbox,
+  FormControlLabel,
+  Typography,
+  Collapse,
+  IconButton
+} from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 import { theme } from '../themes/search';
 import { Search, SearchError, SearchQuery } from '../components/search';
@@ -14,12 +23,11 @@ import { Query } from '../components/query/notebook';
 import { CompositeQuery, Composition } from '../components/query/fields';
 import { ResultEntity } from '../components/result/result';
 import {
-  NotebookSearchResponse,
+  CellSearchResponse,
   performSearch,
   prepareNotebook,
   SearchTarget
 } from './handler';
-import { NotebookManager } from '../extensions/cellmanager';
 import { SolrQuery } from '../components/query/base';
 import { IndexedColumnId } from '../components/result/result';
 import { ResultColumn } from '../components/result/results';
@@ -27,7 +35,10 @@ import { requestAPI } from '../handler';
 import { nbsearchIcon } from './icons';
 import {
   showSectionSelectionDialog,
-  NotebookSection
+  NotebookSection,
+  SectionSelectionResult,
+  Scope,
+  Range
 } from '../components/dialog/section-selection';
 
 type KeywordWithComposition = {
@@ -35,9 +46,18 @@ type KeywordWithComposition = {
   keyword: Keyword;
 };
 
+type MemeFilter = {
+  previous: boolean;
+  next: boolean;
+  exactMatch: boolean;
+};
+
 type KeywordWithSections = {
   query: KeywordWithComposition;
-  sections: string[];
+  scope?: Scope;
+  range?: Range;
+  sections?: string[];
+  memeFilter?: MemeFilter;
 };
 
 /**
@@ -80,6 +100,76 @@ function arrangeMetadata(metadata: any): any {
   return newMetadata;
 }
 
+/**
+ * Get cells to insert based on selection result
+ */
+function getCellsFromSelectionResult(
+  selectionResult: SectionSelectionResult,
+  allCells: any[],
+  searchResultCellMeme: string | undefined,
+  sections: NotebookSection[]
+): any[] {
+  // Find the search result cell index
+  const searchResultCellIndex = allCells.findIndex(
+    cell => cell.metadata?.lc_cell_meme?.current === searchResultCellMeme
+  );
+
+  if (searchResultCellIndex === -1) {
+    return [];
+  }
+
+  switch (selectionResult.scope) {
+    case 'cell':
+      return [allCells[searchResultCellIndex]];
+
+    case 'section': {
+      // Find the section containing the search result cell
+      const section = sections.find(
+        s =>
+          searchResultCellIndex >= s.startIndex &&
+          searchResultCellIndex <= s.endIndex
+      );
+
+      if (!section) {
+        return [];
+      }
+
+      const cellIndexInSection = searchResultCellIndex - section.startIndex;
+
+      if (selectionResult.range === 'before') {
+        return section.cells.slice(0, cellIndexInSection + 1);
+      } else if (selectionResult.range === 'after') {
+        return section.cells.slice(cellIndexInSection);
+      } else {
+        return section.cells;
+      }
+    }
+
+    case 'notebook':
+      if (selectionResult.range === 'before') {
+        // All cells from start to search result cell (inclusive)
+        return allCells.slice(0, searchResultCellIndex + 1);
+      } else if (selectionResult.range === 'after') {
+        // All cells from search result cell to end (inclusive)
+        return allCells.slice(searchResultCellIndex);
+      } else if (selectionResult.range === 'all') {
+        // Use selected sections (traditional behavior)
+        if (!selectionResult.sections || selectionResult.sections.length === 0) {
+          return [];
+        }
+        const cells: any[] = [];
+        for (const section of selectionResult.sections) {
+          cells.push(...section.cells);
+        }
+        return cells;
+      }
+      return [];
+
+    default:
+      return [];
+  }
+}
+
 type Keyword = {
   [key: string]: string;
 };
@@ -88,6 +178,100 @@ function getSolrQueryFromKeyword(keyword: KeywordWithComposition): string {
   return Object.entries(keyword.keyword)
     .map(([key, value]) => `${key}:${value}`)
     .join(keyword.composition === Composition.And ? ' AND ' : ' OR ');
+}
+
+function getMemeFilterLabel(filter: MemeFilter): string {
+  if (!filter.previous && !filter.next) {
+    return 'None';
+  }
+  const parts: string[] = [];
+  if (filter.previous) parts.push('Previous');
+  if (filter.next) parts.push('Next');
+  const location = parts.join(' + ');
+  return filter.exactMatch ? `${location}, Exact` : location;
+}
+
+function extractBaseMeme(meme: string | null): string | null {
+  if (!meme) return null;
+  const parts = meme.split('-');
+  if (parts.length <= 5) return meme;
+  return parts.slice(0, 5).join('-');
+}
+
+type LCCellMeme = {
+  current: string;
+};
+
+type LCCellMemeMetadata = {
+  lc_cell_meme?: LCCellMeme;
+};
+
+function getCellMemes(
+  currentCell: CodeCell,
+  notebookTracker: INotebookTracker
+): { previous: string | null; next: string | null } {
+  const notebookPanel = notebookTracker.currentWidget;
+  if (!notebookPanel) {
+    return { previous: null, next: null };
+  }
+
+  const notebook = notebookPanel.content;
+  const cells = notebook.widgets;
+  const currentIndex = cells.findIndex(
+    cell => cell.model.id === currentCell.model.id
+  );
+
+  if (currentIndex === -1) {
+    return { previous: null, next: null };
+  }
+
+  let previousMeme: string | null = null;
+  if (currentIndex > 0) {
+    const prevCell = cells[currentIndex - 1];
+    if (prevCell) {
+      const metadata = prevCell.model.metadata as LCCellMemeMetadata;
+      if (metadata?.lc_cell_meme?.current) {
+        previousMeme = metadata.lc_cell_meme.current;
+      }
+    }
+  }
+
+  let nextMeme: string | null = null;
+  if (currentIndex < cells.length - 1) {
+    const nextCell = cells[currentIndex + 1];
+    if (nextCell) {
+      const metadata = nextCell.model.metadata as LCCellMemeMetadata;
+      if (metadata?.lc_cell_meme?.current) {
+        nextMeme = metadata.lc_cell_meme.current;
+      }
+    }
+  }
+
+  return { previous: previousMeme, next: nextMeme };
+}
+
+function buildMemeQuery(
+  filter: MemeFilter,
+  previousMeme: string | null,
+  nextMeme: string | null
+): string {
+  const parts: string[] = [];
+
+  if (filter.previous && previousMeme) {
+    const meme = filter.exactMatch
+      ? `"${previousMeme}"`
+      : `${extractBaseMeme(previousMeme)}*`;
+    parts.push(`lc_cell_meme__previous:${meme}`);
+  }
+
+  if (filter.next && nextMeme) {
+    const meme = filter.exactMatch
+      ? `"${nextMeme}"`
+      : `${extractBaseMeme(nextMeme)}*`;
+    parts.push(`lc_cell_meme__next:${meme}`);
+  }
+
+  return parts.join(' AND ');
 }
 
 function getCompositeQueryFromKeyword(
@@ -199,16 +383,19 @@ function parseNotebookSections(cells: any[]): NotebookSection[] {
 
 type InsertedContent = {
   insertedMEMEs?: string[];
+  scope?: Scope;
+  range?: Range;
   selectedSectionTitles?: string[];
+  memeFilter?: MemeFilter;
 };
 
 type MagicSearchWidgetProps = {
   currentCell: CodeCell;
   documents: IDocumentManager;
   notebookTracker: INotebookTracker;
-  notebookManager: NotebookManager;
   keyword?: KeywordWithComposition;
-  lastSelectedSections?: string[];
+  lastSelectionResult: SectionSelectionResult | null;
+  memeFilter?: MemeFilter;
   onClosed?: (
     inserted: boolean,
     latestCompositeQuery?: CompositeQuery,
@@ -217,57 +404,50 @@ type MagicSearchWidgetProps = {
 };
 const resultColumns: ResultColumn[] = [
   {
+    id: IndexedColumnId.Source,
+    label: 'Source',
+    value: ['source__markdown', 'source__code']
+  },
+  {
     id: IndexedColumnId.Path,
     label: 'Path',
-    value: 'filename'
+    value: 'notebook_filename'
   },
   {
     id: IndexedColumnId.Server,
     label: 'Server',
-    value: 'signature_server_url'
+    value: 'notebook_server'
   },
   {
     id: IndexedColumnId.Owner,
     label: 'Owner',
-    value: 'owner'
+    value: 'notebook_owner'
   },
   {
-    id: IndexedColumnId.Modified,
-    label: 'Modified',
-    value: 'mtime'
-  },
-  {
-    id: IndexedColumnId.Executed,
-    label: 'Executed',
-    value: 'lc_cell_meme__execution_end_time'
-  },
-  {
-    id: IndexedColumnId.OperationNote,
-    label: 'Operation Note',
-    value: 'source__markdown__operation_note'
-  },
-  {
-    id: IndexedColumnId.NumberOfHeaders,
-    label: '# of Headers',
-    value: 'source__markdown__heading_count'
+    id: IndexedColumnId.EstimatedModifiedTime,
+    label: 'Executed/Modified',
+    value: 'estimated_mtime'
   }
 ];
 
 const searchFields: IndexedColumnId[] = resultColumns
   .map(r => r.id)
   .concat([
-    IndexedColumnId.Cells,
-    IndexedColumnId.Outputs,
-    IndexedColumnId.CellMemes
+    IndexedColumnId.Stdout,
+    IndexedColumnId.Stderr,
+    IndexedColumnId.ResultPlain,
+    IndexedColumnId.ResultHTML,
+    IndexedColumnId.SourceMarkdownHeading,
+    IndexedColumnId.SourceMarkdownHashtags
   ]);
 
 export function MagicSearchWidget({
   currentCell,
   documents,
   notebookTracker,
-  notebookManager,
   keyword,
-  lastSelectedSections,
+  lastSelectionResult,
+  memeFilter: initialMemeFilter,
   onClosed
 }: MagicSearchWidgetProps): JSX.Element | null {
   const [results, setResults] = useState<ResultEntity[]>([]);
@@ -281,13 +461,28 @@ export function MagicSearchWidget({
   const [latestCompositeQuery, setLatestCompositeQuery] = useState<
     CompositeQuery | undefined
   >(keyword ? getCompositeQueryFromKeyword(keyword) : undefined);
+  const [memeFilter, setMemeFilter] = useState<MemeFilter>(
+    initialMemeFilter || { previous: false, next: false, exactMatch: false }
+  );
+  const [memeFilterExpanded, setMemeFilterExpanded] = useState(false);
 
   const searchHandler = useCallback(
     (query: SearchQuery, finished: () => void) => {
-      performSearch<NotebookSearchResponse>(SearchTarget.Notebook, query)
+      const cellMemes = getCellMemes(currentCell, notebookTracker);
+      const memeQuery = buildMemeQuery(
+        memeFilter,
+        cellMemes.previous,
+        cellMemes.next
+      );
+
+      const finalQuery = memeQuery
+        ? { ...query, queryString: `(${query.queryString}) AND ${memeQuery}` }
+        : query;
+
+      performSearch<CellSearchResponse>(SearchTarget.Cell, finalQuery)
         .then(results => {
           setError(undefined);
-          setResults(results.notebooks);
+          setResults(results.cells);
           setPage({
             start: results.start,
             limit: results.limit,
@@ -300,7 +495,7 @@ export function MagicSearchWidget({
           finished();
         });
     },
-    []
+    [memeFilter, currentCell, notebookTracker]
   );
 
   const added = useCallback(
@@ -308,11 +503,11 @@ export function MagicSearchWidget({
       console.log('Selected result:', result);
 
       // Call DataHandler with notebook_id
-      if (!result.id) {
+      if (!result.notebook_id) {
         console.warn('No notebook_id found in result');
         return;
       }
-      const notebookData = await requestAPI<any>(`v1/data/${result.id}`);
+      const notebookData = await requestAPI<any>(`v1/data/${result.notebook_id}`);
 
       const currentNotebook = notebookTracker.currentWidget?.model;
       if (!currentNotebook || !notebookData.notebook?.cells) {
@@ -323,13 +518,28 @@ export function MagicSearchWidget({
       const sections = parseNotebookSections(notebookData.notebook.cells);
 
       // Show section selection dialog
-      const selectedSections = await showSectionSelectionDialog(
+      const hasMeme = !!result.lc_cell_meme__current;
+      const selectionResult = await showSectionSelectionDialog(
         sections,
-        lastSelectedSections
+        hasMeme,
+        lastSelectionResult
       );
 
-      if (!selectedSections || selectedSections.length === 0) {
-        console.log('Cell insertion cancelled by user or no sections selected');
+      if (!selectionResult) {
+        console.log('Cell insertion cancelled by user');
+        return;
+      }
+
+      // Get cells to insert based on selection
+      const cellsToInsert = getCellsFromSelectionResult(
+        selectionResult,
+        notebookData.notebook.cells,
+        result.lc_cell_meme__current,
+        sections
+      );
+
+      if (cellsToInsert.length === 0) {
+        console.warn('No cells to insert');
         return;
       }
 
@@ -342,13 +552,11 @@ export function MagicSearchWidget({
         return;
       }
 
-      // Get MEME sequence from selected sections
+      // Get MEME sequence from cells to insert
       const selectedMEMEs: string[] = [];
-      for (const section of selectedSections) {
-        for (const cellData of section.cells) {
-          if (cellData.metadata?.lc_cell_meme?.current) {
-            selectedMEMEs.push(cellData.metadata.lc_cell_meme.current);
-          }
+      for (const cellData of cellsToInsert) {
+        if (cellData.metadata?.lc_cell_meme?.current) {
+          selectedMEMEs.push(cellData.metadata.lc_cell_meme.current);
         }
       }
 
@@ -379,76 +587,72 @@ export function MagicSearchWidget({
       if (sequencesMatch) {
         // Update existing cells instead of inserting new ones
         let cellIndex = currentCellIndex + 1;
-        for (const section of selectedSections) {
-          for (const cellData of section.cells) {
-            if (cellIndex < currentNotebook.cells.length) {
-              const existingCell = currentNotebook.cells.get(cellIndex);
-              // Update cell content and metadata
-              const sourceContent = Array.isArray(cellData.source)
-                ? cellData.source.join('\n')
-                : cellData.source;
-              existingCell.sharedModel.setSource(sourceContent);
-              existingCell.sharedModel.setMetadata(
-                arrangeMetadata(cellData.metadata || {})
-              );
-              if (cellData.attachments) {
-                // Only markdown and raw cells support attachments
-                if (
-                  cellData.cell_type === 'markdown' ||
-                  cellData.cell_type === 'raw'
-                ) {
-                  (
-                    existingCell.sharedModel as
-                      | ISharedMarkdownCell
-                      | ISharedRawCell
-                  ).setAttachments(cellData.attachments);
-                }
+        for (const cellData of cellsToInsert) {
+          if (cellIndex < currentNotebook.cells.length) {
+            const existingCell = currentNotebook.cells.get(cellIndex);
+            // Update cell content and metadata
+            const sourceContent = Array.isArray(cellData.source)
+              ? cellData.source.join('\n')
+              : cellData.source;
+            existingCell.sharedModel.setSource(sourceContent);
+            existingCell.sharedModel.setMetadata(
+              arrangeMetadata(cellData.metadata || {})
+            );
+            if (cellData.attachments) {
+              // Only markdown and raw cells support attachments
+              if (
+                cellData.cell_type === 'markdown' ||
+                cellData.cell_type === 'raw'
+              ) {
+                (
+                  existingCell.sharedModel as
+                    | ISharedMarkdownCell
+                    | ISharedRawCell
+                ).setAttachments(cellData.attachments);
               }
-              totalUpdatedCells++;
-              cellIndex++;
+            }
+            totalUpdatedCells++;
+            cellIndex++;
 
-              if (cellData.metadata?.lc_cell_meme?.current) {
-                insertedMEMEs.push(cellData.metadata.lc_cell_meme.current);
-              }
+            if (cellData.metadata?.lc_cell_meme?.current) {
+              insertedMEMEs.push(cellData.metadata.lc_cell_meme.current);
             }
           }
         }
       } else {
         // Insert new cells as before
-        for (const section of selectedSections) {
-          for (const cellData of section.cells) {
-            const newCell: any = {
-              cell_type: cellData.cell_type,
-              source: cellData.source,
-              metadata: arrangeMetadata(cellData.metadata || {}),
-              trusted: true
-            };
-            if (
-              cellData.attachments &&
-              (cellData.cell_type === 'markdown' ||
-                cellData.cell_type === 'raw')
-            ) {
-              newCell.attachments = cellData.attachments;
-            }
-            currentNotebook.sharedModel.insertCell(insertIndex, newCell);
-            insertIndex++;
-            totalInsertedCells++;
-            if (cellData.metadata?.lc_cell_meme?.current) {
-              insertedMEMEs.push(cellData.metadata.lc_cell_meme.current);
-            }
+        for (const cellData of cellsToInsert) {
+          const newCell: any = {
+            cell_type: cellData.cell_type,
+            source: cellData.source,
+            metadata: arrangeMetadata(cellData.metadata || {}),
+            trusted: true
+          };
+          if (
+            cellData.attachments &&
+            (cellData.cell_type === 'markdown' ||
+              cellData.cell_type === 'raw')
+          ) {
+            newCell.attachments = cellData.attachments;
+          }
+          currentNotebook.sharedModel.insertCell(insertIndex, newCell);
+          insertIndex++;
+          totalInsertedCells++;
+          if (cellData.metadata?.lc_cell_meme?.current) {
+            insertedMEMEs.push(cellData.metadata.lc_cell_meme.current);
           }
         }
       }
 
       if (sequencesMatch) {
         console.log(
-          `Updated ${totalUpdatedCells} existing cells from ${selectedSections.length} sections`,
+          `Updated ${totalUpdatedCells} existing cells`,
           'Latest composite query:',
           latestCompositeQuery
         );
       } else {
         console.log(
-          `Inserted ${totalInsertedCells} cells from ${selectedSections.length} sections after current cell`,
+          `Inserted ${totalInsertedCells} cells after current cell`,
           'Latest composite query:',
           latestCompositeQuery
         );
@@ -457,20 +661,31 @@ export function MagicSearchWidget({
       // Close the search display
       setIsClosed(true);
       if (onClosed) {
-        const selectedSectionTitles = selectedSections.map(
-          section => section.title
-        );
         onClosed(true, latestCompositeQuery, {
           insertedMEMEs,
-          selectedSectionTitles
+          scope: selectionResult.scope,
+          range: selectionResult.range,
+          selectedSectionTitles: selectionResult.sections?.map(section => section.title),
+          memeFilter
         });
       }
     },
-    [notebookTracker, currentCell, latestCompositeQuery, onClosed, documents]
+    [
+      notebookTracker,
+      currentCell,
+      latestCompositeQuery,
+      onClosed,
+      documents,
+      memeFilter
+    ]
   );
   const selected = useCallback(
     (result: ResultEntity) => {
-      prepareNotebook('/nbsearch-tmp', result.id)
+      if (!result.notebook_id) {
+        console.warn('No notebook_id found in result');
+        return;
+      }
+      prepareNotebook('/nbsearch-tmp', result.notebook_id)
         .then(result => {
           documents.openOrReveal(`/nbsearch-tmp/${result.filename}`);
         })
@@ -499,6 +714,86 @@ export function MagicSearchWidget({
           NBSearch
         </Box>
         <Search
+          additionalFilters={
+            <Box sx={{ m: '1em' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setMemeFilterExpanded(!memeFilterExpanded)}
+              >
+                <IconButton size="small">
+                  <ExpandMoreIcon
+                    sx={{
+                      transform: memeFilterExpanded
+                        ? 'rotate(0deg)'
+                        : 'rotate(-90deg)',
+                      transition: 'transform 0.2s'
+                    }}
+                  />
+                </IconButton>
+                <Typography>
+                  MEME Filter ({getMemeFilterLabel(memeFilter)})
+                </Typography>
+              </Box>
+              <Collapse in={memeFilterExpanded}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1,
+                    pl: 5
+                  }}
+                >
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={memeFilter.previous}
+                        onChange={e =>
+                          setMemeFilter(prev => ({
+                            ...prev,
+                            previous: e.target.checked
+                          }))
+                        }
+                      />
+                    }
+                    label="Previous Cell MEME"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={memeFilter.next}
+                        onChange={e =>
+                          setMemeFilter(prev => ({
+                            ...prev,
+                            next: e.target.checked
+                          }))
+                        }
+                      />
+                    }
+                    label="Next Cell MEME"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={memeFilter.exactMatch}
+                        onChange={e =>
+                          setMemeFilter(prev => ({
+                            ...prev,
+                            exactMatch: e.target.checked
+                          }))
+                        }
+                        disabled={!memeFilter.previous && !memeFilter.next}
+                      />
+                    }
+                    label="Match branch numbers exactly"
+                  />
+                </Box>
+              </Collapse>
+            </Box>
+          }
           columns={resultColumns}
           onSearch={searchHandler}
           onResultSelect={selected}
@@ -513,6 +808,11 @@ export function MagicSearchWidget({
           queryFactory={(solrQueryChanged, onSearch) => (
             <Query
               fields={searchFields}
+              initialQuery={
+                keyword
+                  ? { queryString: getSolrQueryFromKeyword(keyword) }
+                  : { queryString: '_text_:*' }
+              }
               onChange={(query: SolrQuery, compositeQuery?: CompositeQuery) => {
                 // Update latest composite query if available
                 if (compositeQuery) {
@@ -535,7 +835,8 @@ export function MagicSearchWidget({
             onClosed
               ? () =>
                   onClosed(false, latestCompositeQuery, {
-                    selectedSectionTitles: []
+                    selectedSectionTitles: [],
+                    memeFilter
                   })
               : undefined
           }
@@ -548,26 +849,36 @@ export function MagicSearchWidget({
 export function createMagicSearchWidget(
   documents: IDocumentManager,
   notebookTracker: INotebookTracker,
-  notebookManager: NotebookManager,
   keywordWithSections: Keyword | KeywordWithSections,
   codeCell: CodeCell
 ): void {
   // Get output element from the CodeCell
   const outputElement = getOutputElementFromCodeCell(codeCell);
   let outputWrapper: HTMLElement | null = null;
-  const keyword: KeywordWithComposition = (
-    keywordWithSections.query as KeywordWithComposition
-  )?.composition
+
+  const hasComposition = (keywordWithSections.query as KeywordWithComposition)?.composition;
+  const keyword: KeywordWithComposition = hasComposition
     ? (keywordWithSections.query as KeywordWithComposition)
     : {
         composition: Composition.And,
         keyword: keywordWithSections as Keyword
       };
-  const lastSelectedSections: string[] = (
-    keywordWithSections.query as KeywordWithComposition
-  )?.composition
-    ? (keywordWithSections as KeywordWithSections).sections
-    : [];
+
+  const kws = keywordWithSections as KeywordWithSections;
+  const lastSelectionResult: SectionSelectionResult | null = kws.scope
+    ? {
+        scope: kws.scope,
+        range: kws.range,
+        sections: kws.sections
+          ? kws.sections.map(title => ({
+              title,
+              startIndex: 0,
+              endIndex: 0,
+              cells: []
+            }))
+          : undefined
+      }
+    : null;
 
   // Create a custom ReactWidget class for output area mounting (multi-outputs pattern)
   class MagicSearchOutputWidget extends ReactWidget {
@@ -583,9 +894,9 @@ export function createMagicSearchWidget(
           currentCell={codeCell}
           documents={documents}
           notebookTracker={notebookTracker}
-          notebookManager={notebookManager}
           keyword={keyword}
-          lastSelectedSections={lastSelectedSections}
+          lastSelectionResult={lastSelectionResult}
+          memeFilter={kws.memeFilter}
           onClosed={(
             inserted: boolean,
             latestCompositeQuery?: CompositeQuery,
@@ -595,16 +906,15 @@ export function createMagicSearchWidget(
             const keywordToUse = latestCompositeQuery
               ? getKeywordFromCompositeQuery(latestCompositeQuery)
               : keyword || {};
-            if (insertedContent?.insertedMEMEs) {
-              keywordToUse.keyword.lc_cell_memes =
-                insertedContent.insertedMEMEs[0];
-            }
 
             // Convert keyword to YAML and set as cell source
             let yamlLines: string[] = ['%%nbsearch'];
             const yamlData: KeywordWithSections = {
               query: keywordToUse,
-              sections: insertedContent?.selectedSectionTitles || []
+              scope: insertedContent?.scope,
+              range: insertedContent?.range,
+              sections: insertedContent?.selectedSectionTitles,
+              memeFilter: insertedContent?.memeFilter
             };
             yamlLines = yamlLines.concat(
               stringify(yamlData).trim().split('\n')

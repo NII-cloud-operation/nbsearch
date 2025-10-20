@@ -41,6 +41,7 @@ export type SearchProps = {
   results?: ResultEntity[];
   error?: SearchError;
   onClosed?: () => void;
+  additionalFilters?: React.ReactNode;
 };
 
 export function Search({
@@ -59,7 +60,8 @@ export function Search({
   defaultQuery,
   queryFactory,
   queryContext,
-  onClosed
+  onClosed,
+  additionalFilters
 }: SearchProps): JSX.Element {
   const [solrQuery, setSolrQuery] = useState<LazySolrQuery | null>({
     get: () => defaultQuery
@@ -148,6 +150,7 @@ export function Search({
   return (
     <Box sx={{ padding: '1em' }}>
       {queryFactory(solrQueryChanged, clicked)}
+      {additionalFilters}
       <Box className="nbsearch-search-execute">
         {error && (
           <strong className="nbsearch-search-error">{error.message}</strong>

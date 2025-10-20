@@ -37,10 +37,12 @@ export async function performSearch<T extends ResponseBase>(
     start?: string;
     q_op?: string;
   } = {
-    query: query.queryString,
-    q_op: query.q_op
+    query: query.queryString
   };
   const { sortQuery, pageQuery } = query;
+  if (query.q_op) {
+    params.q_op = query.q_op;
+  }
   if (sortQuery) {
     params.sort = `${sortQuery.column} ${
       sortQuery.order === SortOrder.Ascending ? 'asc' : 'desc'

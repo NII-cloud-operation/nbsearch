@@ -93,3 +93,13 @@
     padding: 8px;
     border-radius: 4px;
 }
+
+.section-selection-root {
+    font-size: 0.8rem !important;
+}
+
+.section-selection-root .MuiFormControlLabel-label,
+.section-selection-root .MuiFormLabel-root,
+.section-selection-root .MuiTypography-root {
+    font-size: 0.8rem !important;
+}
