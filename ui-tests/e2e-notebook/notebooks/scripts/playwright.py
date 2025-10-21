@@ -23,6 +23,7 @@ current_contexts = None
 default_last_path = None
 context_close_on_fail = True
 temp_dir = None
+default_delay = None
 
 
 async def run_pw(
@@ -68,6 +69,9 @@ async def run_pw(
     if f is not None:
         try:
             next_page = await f(current_pages[-1])
+            # Apply default delay after function execution if specified
+            if default_delay is not None and default_delay > 0:
+                await current_pages[-1].wait_for_timeout(default_delay)
         except Exception:
             if context_close_on_fail:
                 await finish_pw_context(screenshot=screenshot, last_path=last_path)
@@ -112,7 +116,7 @@ async def close_latest_page(last_path=None):
     await current_context.close()
 
 
-async def init_pw_context(close_on_fail=True, last_path=None):
+async def init_pw_context(close_on_fail=True, last_path=None, delay=None):
     global playwright
     global current_session_id
     global default_last_path
@@ -120,6 +124,7 @@ async def init_pw_context(close_on_fail=True, last_path=None):
     global temp_dir
     global context_close_on_fail
     global current_contexts
+    global default_delay
     if current_browser is not None:
         await current_browser.close()
         current_browser = None
@@ -133,6 +138,7 @@ async def init_pw_context(close_on_fail=True, last_path=None):
     )
     temp_dir = tempfile.mkdtemp()
     context_close_on_fail = close_on_fail
+    default_delay = delay
     if current_contexts is not None:
         for current_context in current_contexts:
             await current_context.close()

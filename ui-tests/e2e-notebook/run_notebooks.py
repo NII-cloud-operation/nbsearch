@@ -43,6 +43,15 @@ def main() -> int:
     else:
         transition_timeout = None
 
+    default_delay_env = os.getenv("E2E_DEFAULT_DELAY")
+    if default_delay_env:
+        try:
+            default_delay = int(default_delay_env)
+        except ValueError as exc:
+            raise ValueError("E2E_DEFAULT_DELAY must be an integer") from exc
+    else:
+        default_delay = None
+
     ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
     RESULT_ROOT.mkdir(parents=True, exist_ok=True)
 
@@ -61,6 +70,8 @@ def main() -> int:
         parameters = {"default_result_path": str(notebook_artifact_dir)}
         if transition_timeout is not None:
             parameters["transition_timeout"] = transition_timeout
+        if default_delay is not None:
+            parameters["default_delay"] = default_delay
 
         jupyterlab_url = os.getenv("JUPYTERLAB_URL")
         if jupyterlab_url:
