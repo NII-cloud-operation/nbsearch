@@ -121,14 +121,8 @@ function SectionSelectionComponent({
     <Box className="section-selection-root" sx={{ minWidth: 400 }}>
       {/* Scope Selection */}
       <FormControl component="fieldset" sx={{ mb: 2 }}>
-        <FormLabel component="legend">
-          Select Scope
-        </FormLabel>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ mb: 1 }}
-        >
+        <FormLabel component="legend">Select Scope</FormLabel>
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
           Choose how much to insert based on the search result cell
         </Typography>
         <RadioGroup
@@ -160,9 +154,7 @@ function SectionSelectionComponent({
         <>
           <Divider sx={{ mt: 0, mb: 2 }} />
           <FormControl component="fieldset" sx={{ mb: 2 }}>
-            <FormLabel component="legend">
-              Select Range
-            </FormLabel>
+            <FormLabel component="legend">Select Range</FormLabel>
             <RadioGroup
               value={range}
               onChange={e => handleRangeChange(e.target.value as Range)}
@@ -177,11 +169,7 @@ function SectionSelectionComponent({
                 control={<Radio />}
                 label="After this cell (inclusive)"
               />
-              <FormControlLabel
-                value="all"
-                control={<Radio />}
-                label="All"
-              />
+              <FormControlLabel value="all" control={<Radio />} label="All" />
             </RadioGroup>
           </FormControl>
         </>
@@ -192,9 +180,7 @@ function SectionSelectionComponent({
         <>
           <Divider sx={{ mt: 0, mb: 2 }} />
           <FormControl component="fieldset" sx={{ mb: 2 }}>
-            <FormLabel component="legend">
-              Select Sections
-            </FormLabel>
+            <FormLabel component="legend">Select Sections</FormLabel>
             <Stack direction="row" spacing={1} sx={{ mt: 1, mb: 2 }}>
               <Button size="small" variant="outlined" onClick={handleSelectAll}>
                 Select All
@@ -253,7 +239,11 @@ class SectionSelectionWidget extends ReactWidget {
   private result: SectionSelectionResult;
   private hasMeme: boolean;
 
-  constructor(sections: NotebookSection[], initialResult: SectionSelectionResult | null, hasMeme: boolean) {
+  constructor(
+    sections: NotebookSection[],
+    initialResult: SectionSelectionResult | null,
+    hasMeme: boolean
+  ) {
     super();
     this.addClass('section-selection-widget');
     this.sections = sections;

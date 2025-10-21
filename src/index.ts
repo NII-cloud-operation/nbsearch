@@ -133,12 +133,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
           return;
         }
 
-        createMagicSearchWidget(
-          documents,
-          notebookTracker,
-          keyword,
-          codeCell
-        );
+        createMagicSearchWidget(documents, notebookTracker, keyword, codeCell);
       }
     });
 

@@ -1,7 +1,4 @@
-import {
-  INotebookModel,
-  NotebookPanel
-} from '@jupyterlab/notebook';
+import { INotebookModel, NotebookPanel } from '@jupyterlab/notebook';
 import { DocumentRegistry } from '@jupyterlab/docregistry';
 import { IDisposable, DisposableDelegate } from '@lumino/disposable';
 import { ICellModel, MarkdownCell } from '@jupyterlab/cells';

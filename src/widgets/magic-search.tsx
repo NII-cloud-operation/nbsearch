@@ -154,7 +154,10 @@ function getCellsFromSelectionResult(
         return allCells.slice(searchResultCellIndex);
       } else if (selectionResult.range === 'all') {
         // Use selected sections (traditional behavior)
-        if (!selectionResult.sections || selectionResult.sections.length === 0) {
+        if (
+          !selectionResult.sections ||
+          selectionResult.sections.length === 0
+        ) {
           return [];
         }
         const cells: any[] = [];
@@ -185,16 +188,24 @@ function getMemeFilterLabel(filter: MemeFilter): string {
     return 'None';
   }
   const parts: string[] = [];
-  if (filter.previous) parts.push('Previous');
-  if (filter.next) parts.push('Next');
+  if (filter.previous) {
+    parts.push('Previous');
+  }
+  if (filter.next) {
+    parts.push('Next');
+  }
   const location = parts.join(' + ');
   return filter.exactMatch ? `${location}, Exact` : location;
 }
 
 function extractBaseMeme(meme: string | null): string | null {
-  if (!meme) return null;
+  if (!meme) {
+    return null;
+  }
   const parts = meme.split('-');
-  if (parts.length <= 5) return meme;
+  if (parts.length <= 5) {
+    return meme;
+  }
   return parts.slice(0, 5).join('-');
 }
 
@@ -507,7 +518,9 @@ export function MagicSearchWidget({
         console.warn('No notebook_id found in result');
         return;
       }
-      const notebookData = await requestAPI<any>(`v1/data/${result.notebook_id}`);
+      const notebookData = await requestAPI<any>(
+        `v1/data/${result.notebook_id}`
+      );
 
       const currentNotebook = notebookTracker.currentWidget?.model;
       if (!currentNotebook || !notebookData.notebook?.cells) {
@@ -630,8 +643,7 @@ export function MagicSearchWidget({
           };
           if (
             cellData.attachments &&
-            (cellData.cell_type === 'markdown' ||
-              cellData.cell_type === 'raw')
+            (cellData.cell_type === 'markdown' || cellData.cell_type === 'raw')
           ) {
             newCell.attachments = cellData.attachments;
           }
@@ -665,7 +677,9 @@ export function MagicSearchWidget({
           insertedMEMEs,
           scope: selectionResult.scope,
           range: selectionResult.range,
-          selectedSectionTitles: selectionResult.sections?.map(section => section.title),
+          selectedSectionTitles: selectionResult.sections?.map(
+            section => section.title
+          ),
           memeFilter
         });
       }
@@ -856,7 +870,8 @@ export function createMagicSearchWidget(
   const outputElement = getOutputElementFromCodeCell(codeCell);
   let outputWrapper: HTMLElement | null = null;
 
-  const hasComposition = (keywordWithSections.query as KeywordWithComposition)?.composition;
+  const hasComposition = (keywordWithSections.query as KeywordWithComposition)
+    ?.composition;
   const keyword: KeywordWithComposition = hasComposition
     ? (keywordWithSections.query as KeywordWithComposition)
     : {
