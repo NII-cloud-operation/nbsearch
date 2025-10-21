@@ -420,17 +420,17 @@ const resultColumns: ResultColumn[] = [
     value: ['source__markdown', 'source__code']
   },
   {
-    id: IndexedColumnId.Path,
+    id: IndexedColumnId.NotebookFilename,
     label: 'Path',
     value: 'notebook_filename'
   },
   {
-    id: IndexedColumnId.Server,
+    id: IndexedColumnId.NotebookServer,
     label: 'Server',
     value: 'notebook_server'
   },
   {
-    id: IndexedColumnId.Owner,
+    id: IndexedColumnId.NotebookOwner,
     label: 'Owner',
     value: 'notebook_owner'
   },

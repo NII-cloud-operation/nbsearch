@@ -155,6 +155,18 @@ export const ALL_FIELDS: Field[] = [
   {
     id: IndexedColumnId.ResultHTML,
     label: 'Result HTML of cell'
+  },
+  {
+    id: IndexedColumnId.NotebookFilename,
+    label: 'Notebook filename'
+  },
+  {
+    id: IndexedColumnId.NotebookServer,
+    label: 'Notebook server'
+  },
+  {
+    id: IndexedColumnId.NotebookOwner,
+    label: 'Notebook owner'
   }
 ];
 

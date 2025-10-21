@@ -28,7 +28,10 @@ export enum IndexedColumnId {
   Stdout = 'outputs__stdout',
   Stderr = 'outputs__stderr',
   ResultPlain = 'outputs__result_plain',
-  ResultHTML = 'outputs__result_html'
+  ResultHTML = 'outputs__result_html',
+  NotebookFilename = 'notebook_filename',
+  NotebookServer = 'notebook_server',
+  NotebookOwner = 'notebook_owner'
 }
 
 export type ResultEntity = {
