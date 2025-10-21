@@ -65,6 +65,10 @@ def main() -> int:
         jupyterlab_url = os.getenv("JUPYTERLAB_URL")
         if jupyterlab_url:
             parameters["jupyterlab_url"] = jupyterlab_url
+
+        notebook7_url = os.getenv("NOTEBOOK7_URL")
+        if notebook7_url:
+            parameters["notebook7_url"] = notebook7_url
         try:
             pm.execute_notebook(
                 str(notebook),

@@ -22,11 +22,6 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Cache pip dependencies
         uses: actions/cache@v4
         with:
@@ -46,48 +41,29 @@ jobs:
           set -euxo pipefail
           python -m playwright install --with-deps
 
-      - name: Build Docker images
+      - name: Build Docker image
         run: |
           set -euxo pipefail
-          docker compose build
+          docker build -t nbsearch:test .
 
-      - name: Start services
-        run: |
-          set -euxo pipefail
-          docker compose up -d
-
-      - name: Wait for services
-        run: |
-          set -euxo pipefail
-          ui-tests/e2e-notebook/scripts/wait-for-services.sh
-
-      - name: Install nbsearch extension
-        run: |
-          set -euxo pipefail
-          pip install -e "."
-          jupyter labextension develop . --overwrite
-          jupyter server extension enable nbsearch
-          jlpm build
-
-      - name: Update Solr index
-        run: |
-          set -euxo pipefail
-          jupyter nbsearch update-index example/config_docker_compose.py local
-
-      - name: Start JupyterLab
+      - name: Start nbsearch container
         run: |
           set -euxo pipefail
           mkdir -p ui-tests/e2e-notebook/artifacts
-          jupyter lab --no-browser --port=8888 --config=example/config_docker_compose.py --IdentityProvider.token='test-token' > ui-tests/e2e-notebook/artifacts/jupyterlab.log 2>&1 &
-          echo $! > ui-tests/e2e-notebook/artifacts/jupyterlab.pid
-          sleep 10
+          docker run -d \
+            --name nbsearch-test \
+            -p 8888:8888 \
+            nbsearch:test \
+            start-notebook.sh --ServerApp.token='test-token' --ServerApp.allow_origin='*'
+          sleep 20
           # Health check
-          curl --retry 5 --retry-delay 2 --retry-connrefused --fail http://localhost:8888/lab?token=test-token || (cat ui-tests/e2e-notebook/artifacts/jupyterlab.log && exit 1)
+          curl --retry 10 --retry-delay 3 --retry-connrefused --fail http://localhost:8888/lab?token=test-token || (docker logs nbsearch-test && exit 1)
 
       - name: Run notebook E2E tests
         env:
           E2E_TRANSITION_TIMEOUT: '30000'
           JUPYTERLAB_URL: 'http://localhost:8888/lab?token=test-token'
+          NOTEBOOK7_URL: 'http://localhost:8888/tree?token=test-token'
         run: |
           set -euxo pipefail
           python ui-tests/e2e-notebook/run_notebooks.py
@@ -97,7 +73,7 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p ui-tests/e2e-notebook/artifacts
-          docker compose logs --no-color > ui-tests/e2e-notebook/artifacts/docker-compose.log
+          docker logs nbsearch-test > ui-tests/e2e-notebook/artifacts/nbsearch-container.log 2>&1 || true
 
       - name: Upload artifacts
         if: always()
@@ -107,8 +83,9 @@ jobs:
           path: |
             ui-tests/e2e-notebook/artifacts
 
-      - name: Shutdown services
+      - name: Shutdown container
         if: always()
         run: |
           set -euxo pipefail
-          docker compose down -v
+          docker stop nbsearch-test || true
+          docker rm nbsearch-test || true
