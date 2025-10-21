@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 import argparse
 import os
+import subprocess
 
 import papermill as pm
 from papermill.exceptions import PapermillExecutionError
@@ -66,6 +67,14 @@ def main() -> int:
         notebook_dir = notebook.parent
         notebook_artifact_dir = RESULT_ROOT / notebook.stem
         notebook_artifact_dir.mkdir(parents=True, exist_ok=True)
+
+        # Clean up nbsearch-tmp directory in container before each test
+        container_name = os.getenv("NBSEARCH_CONTAINER_NAME", "nbsearch-test")
+        subprocess.run(
+            ["docker", "exec", container_name, "rm", "-rf", "/home/jovyan/nbsearch-tmp"]
+        )
+        print(f"Cleaned up nbsearch-tmp in container {container_name}")
+
         print(f"Running notebook: {notebook} -> {result_notebook}")
         parameters = {"default_result_path": str(notebook_artifact_dir)}
         if transition_timeout is not None:

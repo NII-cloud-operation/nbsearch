@@ -15,6 +15,7 @@ nbsearch/_version.py
 ui-tests/test-results/
 ui-tests/playwright-report/
 ui-tests/e2e-notebook/artifacts/
+nbsearch-tmp/
 
 # Created by https://www.gitignore.io/api/python
 # Edit at https://www.gitignore.io/?templates=python
