@@ -43,11 +43,12 @@ class NBSearchMagics(Magics):
 
     // Function to create magic search widget via extension command
     function createMagicSearchWidget() {{
-        const app = window.jupyterapp;
-        if (!app) {{
-            displayError('JupyterLab application not found');
+        const context = window._NBSEARCH_CONTEXT;
+        if (!context || !context.app) {{
+            displayError('NBSearch context not found');
             return;
         }}
+        const app = context.app;
 
         // Check if the nbsearch extension command exists
         if (!app.commands.hasCommand('nbsearch:magic-search')) {{

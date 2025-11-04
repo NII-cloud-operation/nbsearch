@@ -6,7 +6,12 @@ import {
   Checkbox,
   Typography,
   Button,
-  Stack
+  Stack,
+  Radio,
+  RadioGroup,
+  FormControl,
+  FormLabel,
+  Divider
 } from '@mui/material';
 
 export type NotebookSection = {
@@ -16,20 +21,53 @@ export type NotebookSection = {
   cells: any[];
 };
 
+export type Scope = 'cell' | 'section' | 'notebook';
+export type Range = 'before' | 'after' | 'all';
+
+export type SectionSelectionResult = {
+  scope: Scope;
+  range?: Range;
+  sections?: NotebookSection[];
+};
+
 interface ISectionSelectionWidgetProps {
   sections: NotebookSection[];
-  onSelectionChange: (selectedSections: NotebookSection[]) => void;
-  initialSelectedIndices?: Set<number>;
+  onResultChange: (result: SectionSelectionResult) => void;
+  initialResult?: SectionSelectionResult;
+  hasMeme: boolean;
 }
 
 function SectionSelectionComponent({
   sections,
-  onSelectionChange,
-  initialSelectedIndices
+  onResultChange,
+  initialResult,
+  hasMeme
 }: ISectionSelectionWidgetProps): JSX.Element {
-  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(
-    initialSelectedIndices || new Set()
-  );
+  const [scope, setScope] = useState<Scope>(initialResult?.scope || 'cell');
+  const [range, setRange] = useState<Range>(initialResult?.range || 'after');
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(() => {
+    if (initialResult?.sections) {
+      return new Set(
+        initialResult.sections
+          .map(s => sections.findIndex(sec => sec.title === s.title))
+          .filter(i => i !== -1)
+      );
+    }
+    return new Set(sections.map((_, index) => index));
+  });
+
+  const handleScopeChange = (newScope: Scope) => {
+    setScope(newScope);
+    // Reset range to 'after' when changing scope
+    const newRange: Range = 'after';
+    setRange(newRange);
+    updateResult(newScope, newRange, selectedIndices);
+  };
+
+  const handleRangeChange = (newRange: Range) => {
+    setRange(newRange);
+    updateResult(scope, newRange, selectedIndices);
+  };
 
   const handleCheckboxChange = (index: number, checked: boolean) => {
     const newSelectedIndices = new Set(selectedIndices);
@@ -39,134 +77,222 @@ function SectionSelectionComponent({
       newSelectedIndices.delete(index);
     }
     setSelectedIndices(newSelectedIndices);
-
-    const selected = Array.from(newSelectedIndices).map(i => sections[i]);
-    onSelectionChange(selected);
+    updateResult(scope, range, newSelectedIndices);
   };
 
   const handleSelectAll = () => {
     const allIndices = new Set(sections.map((_, index) => index));
     setSelectedIndices(allIndices);
-    onSelectionChange(sections);
+    updateResult(scope, range, allIndices);
   };
 
   const handleDeselectAll = () => {
-    setSelectedIndices(new Set());
-    onSelectionChange([]);
+    const newSelectedIndices = new Set<number>();
+    setSelectedIndices(newSelectedIndices);
+    updateResult(scope, range, newSelectedIndices);
   };
 
+  const updateResult = (
+    currentScope: Scope,
+    currentRange: Range,
+    currentSelectedIndices: Set<number>
+  ) => {
+    const result: SectionSelectionResult = {
+      scope: currentScope
+    };
+
+    if (currentScope !== 'cell') {
+      result.range = currentRange;
+    }
+
+    if (currentScope === 'notebook' && currentRange === 'all') {
+      result.sections = Array.from(currentSelectedIndices).map(
+        i => sections[i]
+      );
+    }
+
+    onResultChange(result);
+  };
+
+  const showRangeSelection = scope !== 'cell';
+  const showSectionList = scope === 'notebook' && range === 'all';
+
   return (
-    <Box sx={{ minWidth: 400 }}>
-      <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-        <Button size="small" variant="outlined" onClick={handleSelectAll}>
-          Select All
-        </Button>
-        <Button size="small" variant="outlined" onClick={handleDeselectAll}>
-          Deselect All
-        </Button>
-      </Stack>
-      <Box sx={{ maxHeight: '60vh', overflow: 'auto' }}>
-        {sections.map((section, index) => (
-          <Box
-            key={index}
-            sx={{
-              margin: '10px 0',
-              padding: '10px',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
-            }}
-          >
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={selectedIndices.has(index)}
-                  onChange={e => handleCheckboxChange(index, e.target.checked)}
-                />
-              }
-              label={
-                <Box>
-                  <Typography variant="subtitle1" component="div">
-                    <strong>{section.title}</strong>
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {section.cells.length} cells
-                  </Typography>
+    <Box className="section-selection-root" sx={{ minWidth: 400 }}>
+      {/* Scope Selection */}
+      <FormControl component="fieldset" sx={{ mb: 2 }}>
+        <FormLabel component="legend">Select Scope</FormLabel>
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
+          Choose how much to insert based on the search result cell
+        </Typography>
+        <RadioGroup
+          value={scope}
+          onChange={e => handleScopeChange(e.target.value as Scope)}
+        >
+          <FormControlLabel
+            value="cell"
+            control={<Radio />}
+            label="Single cell"
+          />
+          <FormControlLabel
+            value="section"
+            control={<Radio />}
+            label="Containing section"
+            disabled={!hasMeme}
+          />
+          <FormControlLabel
+            value="notebook"
+            control={<Radio />}
+            label="Entire notebook"
+            disabled={!hasMeme}
+          />
+        </RadioGroup>
+      </FormControl>
+
+      {/* Range Selection */}
+      {showRangeSelection && (
+        <>
+          <Divider sx={{ mt: 0, mb: 2 }} />
+          <FormControl component="fieldset" sx={{ mb: 2 }}>
+            <FormLabel component="legend">Select Range</FormLabel>
+            <RadioGroup
+              value={range}
+              onChange={e => handleRangeChange(e.target.value as Range)}
+            >
+              <FormControlLabel
+                value="before"
+                control={<Radio />}
+                label="Before this cell (inclusive)"
+              />
+              <FormControlLabel
+                value="after"
+                control={<Radio />}
+                label="After this cell (inclusive)"
+              />
+              <FormControlLabel value="all" control={<Radio />} label="All" />
+            </RadioGroup>
+          </FormControl>
+        </>
+      )}
+
+      {/* Section List */}
+      {showSectionList && (
+        <>
+          <Divider sx={{ mt: 0, mb: 2 }} />
+          <FormControl component="fieldset" sx={{ mb: 2 }}>
+            <FormLabel component="legend">Select Sections</FormLabel>
+            <Stack direction="row" spacing={1} sx={{ mt: 1, mb: 2 }}>
+              <Button size="small" variant="outlined" onClick={handleSelectAll}>
+                Select All
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={handleDeselectAll}
+              >
+                Deselect All
+              </Button>
+            </Stack>
+            <Box sx={{ maxHeight: '40vh', overflow: 'auto' }}>
+              {sections.map((section, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    margin: '10px 0',
+                    padding: '10px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px'
+                  }}
+                >
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={selectedIndices.has(index)}
+                        onChange={e =>
+                          handleCheckboxChange(index, e.target.checked)
+                        }
+                      />
+                    }
+                    label={
+                      <Box>
+                        <Typography variant="subtitle1" component="div">
+                          <strong>{section.title}</strong>
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {section.cells.length} cells
+                        </Typography>
+                      </Box>
+                    }
+                  />
                 </Box>
-              }
-            />
-          </Box>
-        ))}
-      </Box>
+              ))}
+            </Box>
+          </FormControl>
+        </>
+      )}
     </Box>
   );
 }
 
 class SectionSelectionWidget extends ReactWidget {
   private sections: NotebookSection[];
-  private selectedSections: NotebookSection[] = [];
-  private initialSelectedIndices?: Set<number>;
+  private result: SectionSelectionResult;
+  private hasMeme: boolean;
 
   constructor(
     sections: NotebookSection[],
-    initialSelectedIndices?: Set<number>
+    initialResult: SectionSelectionResult | null,
+    hasMeme: boolean
   ) {
     super();
     this.addClass('section-selection-widget');
     this.sections = sections;
-    this.initialSelectedIndices = initialSelectedIndices;
-    this.selectedSections = initialSelectedIndices
-      ? Array.from(initialSelectedIndices).map(index => sections[index])
-      : sections; // Select all sections by default
+    this.hasMeme = hasMeme;
+    this.result = initialResult || {
+      scope: 'cell'
+    };
   }
 
   render(): JSX.Element {
-    const handleSelectionChange = (selectedSections: NotebookSection[]) => {
-      this.selectedSections = selectedSections;
+    const handleResultChange = (result: SectionSelectionResult) => {
+      this.result = result;
     };
     return (
       <SectionSelectionComponent
         sections={this.sections}
-        onSelectionChange={handleSelectionChange}
-        initialSelectedIndices={this.initialSelectedIndices}
+        onResultChange={handleResultChange}
+        initialResult={this.result}
+        hasMeme={this.hasMeme}
       />
     );
   }
-  getSelectedSections(): NotebookSection[] {
-    return this.selectedSections;
+
+  getResult(): SectionSelectionResult {
+    return this.result;
   }
 }
 
 export async function showSectionSelectionDialog(
   sections: NotebookSection[],
-  initialSelectedSectionTitles?: string[]
-): Promise<NotebookSection[] | null> {
-  // Convert initial section titles to indices
-  // If no initial selection is provided or it's empty, select all sections
-  const initialSelectedIndices =
-    initialSelectedSectionTitles && initialSelectedSectionTitles.length > 0
-      ? new Set(
-          initialSelectedSectionTitles
-            .map(title =>
-              sections.findIndex(section => section.title === title)
-            )
-            .filter(index => index !== -1)
-        )
-      : new Set(sections.map((_, index) => index)); // Select all sections by default
+  hasMeme: boolean,
+  initialResult: SectionSelectionResult | null
+): Promise<SectionSelectionResult | null> {
+  const widget = new SectionSelectionWidget(sections, initialResult, hasMeme);
 
-  const widget = new SectionSelectionWidget(sections, initialSelectedIndices);
-
-  const result = await showDialog({
-    title: 'Select Sections to Add',
+  const dialogResult = await showDialog({
+    title: 'Select Range to Add',
     body: widget,
     buttons: [
       Dialog.cancelButton({ label: 'Cancel' }),
-      Dialog.okButton({ label: 'Add Selected Sections' })
+      Dialog.okButton({ label: 'Add' })
     ]
   });
-  const selectedSections = widget.getSelectedSections();
+
+  const selectionResult = widget.getResult();
   widget.dispose();
-  if (result.button.accept) {
-    return selectedSections.length > 0 ? selectedSections : null;
+
+  if (dialogResult.button.accept) {
+    return selectionResult;
   }
   return null;
 }

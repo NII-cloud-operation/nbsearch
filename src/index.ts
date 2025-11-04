@@ -9,11 +9,8 @@ import { INotebookTracker } from '@jupyterlab/notebook';
 import { CodeCell } from '@jupyterlab/cells';
 
 import { buildTreeWidget } from './widgets/tree-search';
-import { buildCellWidget } from './widgets/cell-search';
 import { Platform, PlatformType, getPlatform } from './widgets/platform';
-import { ToolbarExtension } from './extensions/toolbar';
 import { CellExtension } from './extensions/cell';
-import { NotebookManager } from './extensions/cellmanager';
 import { createMagicSearchWidget } from './widgets/magic-search';
 import { hasSearchParams } from './utils/url-params';
 import { ReactWidget } from '@jupyterlab/apputils';
@@ -68,20 +65,10 @@ function initWidgets(
   platform: Platform,
   documents: IDocumentManager,
   notebookTracker: INotebookTracker,
-  settings: ISettingRegistry.ISettings,
-  notebookManager: NotebookManager
+  settings: ISettingRegistry.ISettings
 ): ReactWidget | null {
   let treeWidget: ReactWidget | null = null;
 
-  if (platform.type !== PlatformType.JUPYTER_NOTEBOOK7_TREE) {
-    app.shell.add(
-      buildCellWidget(documents, notebookTracker, notebookManager),
-      'right',
-      {
-        rank: 2000
-      }
-    );
-  }
   if (platform.type === PlatformType.JUPYTER_LAB_OR_NOTEBOOK7_NOTEBOOK) {
     treeWidget = buildTreeWidget(documents, platform, false);
     app.shell.add(treeWidget, 'left', { rank: 2000 });
@@ -112,10 +99,11 @@ const plugin: JupyterFrontEndPlugin<void> = {
     notebookTracker: INotebookTracker
   ) => {
     console.log('JupyterLab extension nbsearch is activated!');
-    const notebookManager = new NotebookManager();
-    const cellExtension = new CellExtension(notebookTracker, notebookManager);
 
-    app.docRegistry.addWidgetExtension('Notebook', new ToolbarExtension(app));
+    (window as any)._NBSEARCH_CONTEXT = { app };
+
+    const cellExtension = new CellExtension();
+
     app.docRegistry.addWidgetExtension('Notebook', cellExtension);
 
     // Add command for magic-triggered search
@@ -145,13 +133,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
           return;
         }
 
-        createMagicSearchWidget(
-          documents,
-          notebookTracker,
-          notebookManager,
-          keyword,
-          codeCell
-        );
+        createMagicSearchWidget(documents, notebookTracker, keyword, codeCell);
       }
     });
 
@@ -162,8 +144,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
           platform,
           documents,
           notebookTracker,
-          settings,
-          notebookManager
+          settings
         );
 
         // Set up the search handler
