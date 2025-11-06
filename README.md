@@ -1,6 +1,6 @@
 # nbsearch
 
-[![Release](https://github.com/NII-cloud-operation/nbsearch/actions/workflows/release.yml/badge.svg)](https://github.com/NII-cloud-operation/nbsearch/actions/workflows/release.yml) [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/NII-cloud-operation/nbsearch/feature/lab?urlpath=lab)
+[![Release](https://github.com/NII-cloud-operation/nbsearch/actions/workflows/release.yml/badge.svg)](https://github.com/NII-cloud-operation/nbsearch/actions/workflows/release.yml) [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/NII-cloud-operation/nbsearch/main?urlpath=tree)
 
 nbsearch extension provides search capabilities for Jupyter Notebooks, which you created. It supports search by MEME in addition to search by keywords and modified times like a search engine.
 
