@@ -131,15 +131,20 @@ async def search_notebooks(
     q_op: str = "AND",
     start: int = 0,
     limit: int = 10,
-    sort: str | None = None,
+    sort: str = "mtime desc",
 ) -> str:
     """Search notebooks by keyword. Accepts Solr query syntax.
 
     Examples:
-      - "pandas"               : full-text search
-      - "source__code:pandas"  : search within code cells
-      - "owner:yazawa"         : filter by owner
+      - "pandas"                                           : full-text search
+      - "source__code:pandas"                              : search within code cells
+      - "owner:yazawa"                                     : filter by owner
+      - "mtime:[2025-01-01T00:00:00Z TO *]"               : modified since 2025
+      - "mtime:[2025-04-01T00:00:00Z TO 2025-04-30T23:59:59Z]" : modified in April 2025
+      - "source__code:pandas AND mtime:[2025-01-01T00:00:00Z TO *]" : combine conditions
 
+    Date fields: mtime (modified), ctime (created). Format: YYYY-MM-DDThh:mm:ssZ
+    Results are sorted by modification time (newest first) by default.
     Returns lightweight overview only (id, filename, owner, headings).
     Drill down via get_notebook_toc → get_notebook_section for details.
     """
@@ -180,14 +185,17 @@ async def search_cells(
     q_op: str = "AND",
     start: int = 0,
     limit: int = 10,
-    sort: str | None = None,
+    sort: str = "estimated_mtime desc",
 ) -> str:
     """Search at cell level. Can search code and markdown cells individually.
 
     Examples:
       - "cell_type:code AND source__code:pandas"
       - "source__markdown__heading_1:Setup"
+      - "cell_type:code AND estimated_mtime:[2025-01-01T00:00:00Z TO *]" : recent code cells
 
+    Date field: estimated_mtime. Format: YYYY-MM-DDThh:mm:ssZ
+    Results are sorted by estimated modification time (newest first) by default.
     Returns first 5 lines of source only. Use get_notebook_section for full content.
     """
     result = await _db.query_cells(
