@@ -16,6 +16,7 @@ import json
 import os
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from .config import load_config
 from .db import NBSearchDB
@@ -302,11 +303,16 @@ def main():
     )
     parser.add_argument("--host", default="127.0.0.1", help="HTTP host (default: 127.0.0.1)")
     parser.add_argument("--port", type=int, default=8000, help="HTTP port (default: 8000)")
+    parser.add_argument("--allowed-host", action="append", default=[], help="Allowed Host header values (repeatable)")
     args = parser.parse_args()
 
     if args.transport == "http":
         mcp.settings.host = args.host
         mcp.settings.port = args.port
+        if args.allowed_host:
+            mcp.settings.transport_security = TransportSecuritySettings(
+                allowed_hosts=args.allowed_host,
+            )
         mcp.run(transport="streamable-http")
     else:
         mcp.run(transport="stdio")
