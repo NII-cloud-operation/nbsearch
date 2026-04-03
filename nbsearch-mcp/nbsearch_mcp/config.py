@@ -32,8 +32,8 @@ def load_config() -> Config:
     return Config(
         solr=SolrConfig(
             base_url=os.environ.get("SOLR_BASE_URL", "http://localhost:8983"),
-            username=os.environ.get("SOLR_USERNAME", ""),
-            password=os.environ.get("SOLR_PASSWORD", ""),
+            username=os.environ.get("SOLR_BASIC_AUTH_USERNAME", ""),
+            password=os.environ.get("SOLR_BASIC_AUTH_PASSWORD", ""),
             notebook_core=os.environ.get("SOLR_NOTEBOOK_CORE", "jupyter-notebook"),
             cell_core=os.environ.get("SOLR_CELL_CORE", "jupyter-cell"),
         ),

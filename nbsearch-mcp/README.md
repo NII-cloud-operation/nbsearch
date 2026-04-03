@@ -23,8 +23,8 @@ python -m nbsearch_mcp.server --transport http --port 8000
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `SOLR_BASE_URL` | Solr base URL | `http://localhost:8983` |
-| `SOLR_USERNAME` | Solr Basic Auth username | (empty) |
-| `SOLR_PASSWORD` | Solr Basic Auth password | (empty) |
+| `SOLR_BASIC_AUTH_USERNAME` | Solr Basic Auth username | (empty) |
+| `SOLR_BASIC_AUTH_PASSWORD` | Solr Basic Auth password | (empty) |
 | `S3_ENDPOINT_URL` | S3 endpoint URL | `http://localhost:9000` |
 | `S3_ACCESS_KEY` | S3 access key | (required) |
 | `S3_SECRET_KEY` | S3 secret key | (required) |
