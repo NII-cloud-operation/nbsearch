@@ -49,42 +49,19 @@ This server searches and retrieves Jupyter Notebooks stored in Solr and S3.
 ## Search parameters
 
 search_notebooks and search_cells accept structured parameters (all optional,
-combined with AND):
+combined with AND). All text parameters use token-split search (words are
+matched independently).
 
-  phrase    — phrase search across all fields (code, markdown, outputs)
-  code      — phrase search within code cells
-  markdown  — phrase search within markdown cells
+  text      — search across all fields (code, markdown, outputs)
+  code      — search within code cells
+  markdown  — search within markdown cells
   owner     — filter by notebook owner
   filename  — filter by notebook filename
   date_from — modified since (YYYY-MM-DD)
   date_to   — modified until (YYYY-MM-DD)
-  freetext  — raw Solr query for advanced use (combined via AND with above)
 
 search_cells additionally accepts:
   cell_type — "code" or "markdown"
-
-### freetext (advanced)
-
-The freetext parameter accepts raw Solr query syntax for cases not covered
-by structured parameters. Available Solr fields:
-
-  Notebook: source__markdown__heading_1 (also _2 through _6),
-    source__markdown__hashtags, source__markdown__url,
-    outputs__stdout, outputs__stderr,
-    lc_notebook_meme__current, lc_cell_memes
-  Cell: lc_cell_meme__current, lc_cell_meme__previous, lc_cell_meme__next,
-    execution_count
-
-### MEME (lineage tracking, use via freetext)
-
-Each notebook and cell has a MEME — a UUID assigned at creation that persists
-through copies. When copied to a different environment, branch suffixes are
-appended (e.g. 437c8d0a-...-1-branch1). The base UUID matches all copies.
-
-  freetext="lc_cell_memes:437c8d0a-0862-11e7-8c9a-0242ac110002"
-    → find notebooks containing a specific cell
-  freetext="lc_cell_meme__current:437c8d0a-0862-11e7-8c9a-0242ac110002"
-    → find all copies of a cell across notebooks
 
 ## Usage flow
 
@@ -173,23 +150,22 @@ _CELL_FIELDS = {
 def _build_query(
     *,
     fields: dict[str, str],
-    phrase: str | None = None,
+    text: str | None = None,
     code: str | None = None,
     markdown: str | None = None,
     owner: str | None = None,
     filename: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
-    freetext: str | None = None,
 ) -> str:
     """Build a Solr query from structured parameters."""
     parts: list[str] = []
-    if phrase:
-        parts.append(f'"{phrase}"')
+    if text:
+        parts.append(text)
     if code:
-        parts.append(f'source__code:"{code}"')
+        parts.append(f"source__code:({code})")
     if markdown:
-        parts.append(f'source__markdown:"{markdown}"')
+        parts.append(f"source__markdown:({markdown})")
     if owner:
         parts.append(f"{fields['owner']}:{owner}")
     if filename:
@@ -198,39 +174,32 @@ def _build_query(
         fr = f"{date_from}T00:00:00Z" if date_from else "*"
         to = f"{date_to}T23:59:59Z" if date_to else "*"
         parts.append(f"{fields['mtime']}:[{fr} TO {to}]")
-    if freetext:
-        parts.append(freetext)
     return " AND ".join(parts) if parts else "*:*"
 
 
 @mcp.tool()
 @_log_elapsed
 async def search_notebooks(
-    phrase: str | None = None,
+    text: str | None = None,
     code: str | None = None,
     markdown: str | None = None,
     owner: str | None = None,
     filename: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
-    freetext: str | None = None,
     start: int = 0,
     limit: int = 10,
     sort: str = "mtime desc",
 ) -> str:
     """Search notebooks. All parameters are optional and combined with AND.
 
-    Structured parameters (phrase search):
-      - phrase    : phrase search across all fields (code, markdown, outputs)
-      - code      : phrase search within code cells
-      - markdown  : phrase search within markdown cells
-      - owner     : filter by notebook owner (token search, handles name variants)
+      - text      : search across all fields (code, markdown, outputs)
+      - code      : search within code cells
+      - markdown  : search within markdown cells
+      - owner     : filter by notebook owner
       - filename  : filter by notebook filename
       - date_from : modified since (YYYY-MM-DD)
       - date_to   : modified until (YYYY-MM-DD)
-
-    Free-text parameter (raw Solr query, token-split search):
-      - freetext  : raw Solr query, combined with other parameters via AND
 
     Results are sorted by modification time (newest first) by default.
     Returns each notebook with its table of contents (heading hierarchy,
@@ -238,14 +207,14 @@ async def search_notebooks(
     """
     query = _build_query(
         fields=_NOTEBOOK_FIELDS,
-        phrase=phrase, code=code, markdown=markdown,
+        text=text, code=code, markdown=markdown,
         owner=owner, filename=filename,
-        date_from=date_from, date_to=date_to, freetext=freetext,
+        date_from=date_from, date_to=date_to,
     )
     cell_query = _build_query(
         fields=_CELL_FIELDS,
-        phrase=phrase, code=code, markdown=markdown,
-        date_from=date_from, date_to=date_to, freetext=freetext,
+        text=text, code=code, markdown=markdown,
+        date_from=date_from, date_to=date_to,
     )
     result = await _db.query_notebooks(
         query, start=start, rows=limit, sort=sort,
@@ -283,7 +252,7 @@ def _pick_cell_fields(doc: dict) -> dict:
 @mcp.tool()
 @_log_elapsed
 async def search_cells(
-    phrase: str | None = None,
+    text: str | None = None,
     code: str | None = None,
     markdown: str | None = None,
     cell_type: str | None = None,
@@ -291,34 +260,29 @@ async def search_cells(
     filename: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
-    freetext: str | None = None,
     start: int = 0,
     limit: int = 10,
     sort: str = "estimated_mtime desc",
 ) -> str:
     """Search at cell level. All parameters are optional and combined with AND.
 
-    Structured parameters (phrase search):
-      - phrase    : phrase search across all cell fields
-      - code      : phrase search within code cells
-      - markdown  : phrase search within markdown cells
+      - text      : search across all cell fields
+      - code      : search within code cells
+      - markdown  : search within markdown cells
       - cell_type : "code" or "markdown"
-      - owner     : filter by notebook owner (token search)
+      - owner     : filter by notebook owner
       - filename  : filter by notebook filename
       - date_from : modified since (YYYY-MM-DD)
       - date_to   : modified until (YYYY-MM-DD)
-
-    Free-text parameter (raw Solr query, token-split search):
-      - freetext  : raw Solr query, combined with other parameters via AND
 
     Results are sorted by estimated modification time (newest first) by default.
     Returns first 5 lines of source only. Use get_notebook for full content.
     """
     base = _build_query(
         fields=_CELL_FIELDS,
-        phrase=phrase, code=code, markdown=markdown,
+        text=text, code=code, markdown=markdown,
         owner=owner, filename=filename,
-        date_from=date_from, date_to=date_to, freetext=freetext,
+        date_from=date_from, date_to=date_to,
     )
     parts: list[str] = []
     if base != "*:*":
