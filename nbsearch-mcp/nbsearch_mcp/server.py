@@ -197,7 +197,7 @@ async def search_notebooks(
     date_to: str | None = None,
     freetext: str | None = None,
     start: int = 0,
-    limit: int = 20,
+    limit: int = 10,
     sort: str = "mtime desc",
 ) -> str:
     """Search notebooks. All parameters are optional and combined with AND.
@@ -274,7 +274,7 @@ async def search_cells(
     date_to: str | None = None,
     freetext: str | None = None,
     start: int = 0,
-    limit: int = 20,
+    limit: int = 10,
     sort: str = "estimated_mtime desc",
 ) -> str:
     """Search at cell level. All parameters are optional and combined with AND.
