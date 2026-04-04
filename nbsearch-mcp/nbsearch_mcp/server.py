@@ -12,9 +12,12 @@ Usage:
 
 from __future__ import annotations
 
+import functools
 import itertools
 import json
+import logging
 import os
+import time
 
 from cachetools import TTLCache
 from mcp.server.fastmcp import FastMCP
@@ -23,6 +26,20 @@ from mcp.server.transport_security import TransportSecuritySettings
 from .config import load_config
 from .db import NBSearchDB
 from .notebook import build_toc, extract_section, get_cell_output as _get_cell_output
+
+logger = logging.getLogger(__name__)
+
+
+def _log_elapsed(fn):
+    @functools.wraps(fn)
+    async def wrapper(*args, **kwargs):
+        t0 = time.monotonic()
+        result = await fn(*args, **kwargs)
+        elapsed = time.monotonic() - t0
+        logger.info("%s completed in %.2fs", fn.__name__, elapsed)
+        return result
+    return wrapper
+
 
 mcp = FastMCP(
     "nbsearch",
@@ -187,6 +204,7 @@ def _build_query(
 
 
 @mcp.tool()
+@_log_elapsed
 async def search_notebooks(
     phrase: str | None = None,
     code: str | None = None,
@@ -263,6 +281,7 @@ def _pick_cell_fields(doc: dict) -> dict:
 
 
 @mcp.tool()
+@_log_elapsed
 async def search_cells(
     phrase: str | None = None,
     code: str | None = None,
@@ -327,6 +346,7 @@ async def search_cells(
 
 
 @mcp.tool()
+@_log_elapsed
 async def get_notebook(
     ref: str,
 ) -> str:
@@ -355,6 +375,7 @@ async def get_notebook(
 
 
 @mcp.tool()
+@_log_elapsed
 async def get_cell_output(
     notebook_id: str,
     cell_index: int,
