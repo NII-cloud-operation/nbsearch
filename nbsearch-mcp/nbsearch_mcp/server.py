@@ -112,6 +112,7 @@ async def _notebook_summary(doc: dict, cell_query: str | None = None) -> dict:
             if len(lines) > 5:
                 preview += "\n..."
             matching_cells.append({
+                "ref": _register_ref(notebook_id, cdoc["index"]),
                 "cell_type": cdoc["cell_type"],
                 "index": cdoc["index"],
                 "source_preview": preview,
@@ -234,7 +235,7 @@ async def search_notebooks(
 
 def _pick_cell_fields(doc: dict) -> dict:
     """Return lightweight cell summary for search results."""
-    source = doc.get("source", "")
+    source = doc.get("source__code") or doc.get("source__markdown") or ""
     lines = source.split("\n") if source else []
     preview = "\n".join(lines[:5])
     if len(lines) > 5:
@@ -252,6 +253,7 @@ def _pick_cell_fields(doc: dict) -> dict:
 @mcp.tool()
 @_log_elapsed
 async def search_cells(
+    ref: str | None = None,
     text: str | None = None,
     code: str | None = None,
     markdown: str | None = None,
@@ -266,6 +268,8 @@ async def search_cells(
 ) -> str:
     """Search at cell level. All parameters are optional and combined with AND.
 
+      - ref       : ref from search_notebooks matching_cells — scopes search
+                    to cells around that position in the same notebook
       - text      : search across all cell fields
       - code      : search within code cells
       - markdown  : search within markdown cells
@@ -274,6 +278,10 @@ async def search_cells(
       - filename  : filter by notebook filename
       - date_from : modified since (YYYY-MM-DD)
       - date_to   : modified until (YYYY-MM-DD)
+
+    When ref is provided, returns cells from the same notebook near that
+    position (limit cells centered around the ref). Other parameters can
+    be combined to further filter.
 
     Results are sorted by estimated modification time (newest first) by default.
     Returns first 5 lines of source only. Use get_notebook for full content.
@@ -287,11 +295,18 @@ async def search_cells(
     parts: list[str] = []
     if base != "*:*":
         parts.append(base)
+    if ref:
+        notebook_id, cell_index = _section_refs[ref]  # KeyError if expired
+        parts.append(f'notebook_id:"{notebook_id}"')
+        half = limit // 2
+        idx_from = max(0, cell_index - half)
+        idx_to = cell_index + half
+        parts.append(f"index:[{idx_from} TO {idx_to}]")
     if cell_type:
         parts.append(f"cell_type:{cell_type}")
     query = " AND ".join(parts) if parts else "*:*"
     result = await _db.query_cells(
-        query, start=start, rows=limit, sort=sort,
+        query, start=start, rows=limit, sort="index asc" if ref else sort,
     )
     response = result["response"]
     cells = [_pick_cell_fields(d) for d in response["docs"]]
