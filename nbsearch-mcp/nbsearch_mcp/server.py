@@ -99,7 +99,7 @@ async def _notebook_summary(doc: dict, cell_query: str | None = None) -> dict:
     cells = notebook["cells"]
     toc = build_toc(notebook)
     for entry in toc:
-        entry["ref"] = _register_ref(notebook_id, entry["cell_index"])
+        entry["ref"] = _register_ref(notebook_id, entry.pop("cell_index"))
 
     matching_cells: list[dict] = []
     if cell_query and cell_query != "*:*":

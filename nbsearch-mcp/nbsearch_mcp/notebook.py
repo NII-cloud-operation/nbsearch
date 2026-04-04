@@ -35,7 +35,7 @@ def build_toc(notebook: dict) -> list[dict]:
     """Build a table-of-contents from notebook cells.
 
     Returns a list of section entries, each with:
-      heading, level, cell_index, code_cell_count, preview
+      heading (prefixed with #), cell_index (for internal use)
     """
     cells = notebook["cells"]
     sections: list[dict] = []
@@ -47,32 +47,10 @@ def build_toc(notebook: dict) -> list[dict]:
         for level, text in _extract_headings(source):
             sections.append(
                 {
-                    "heading": text,
-                    "level": level,
+                    "heading": "#" * level + " " + text,
                     "cell_index": i,
-                    "code_cell_count": 0,
-                    "preview": "",
                 }
             )
-
-    for si, sec in enumerate(sections):
-        start = sec["cell_index"]
-        end = sections[si + 1]["cell_index"] if si + 1 < len(sections) else len(cells)
-        code_count = 0
-        preview_parts: list[str] = []
-        for ci in range(start, end):
-            c = cells[ci]
-            if c["cell_type"] == "code":
-                code_count += 1
-            elif c["cell_type"] == "markdown" and ci == start:
-                src = "".join(c["source"])
-                lines = src.split("\n")
-                body_lines = [
-                    ln for ln in lines if not ln.strip().startswith("#")
-                ]
-                preview_parts.append(" ".join(body_lines).strip())
-        sec["code_cell_count"] = code_count
-        sec["preview"] = _first_words(" ".join(preview_parts))
 
     return sections
 
