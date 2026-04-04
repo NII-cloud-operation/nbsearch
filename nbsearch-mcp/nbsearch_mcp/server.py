@@ -3,7 +3,7 @@
 Exposes Jupyter Notebook search (Solr) and retrieval (S3) as MCP tools
 with a layered overview-to-detail drill-down following nblibram's philosophy:
 
-  search → toc → section → cell output
+  search → get_notebook → get_cell_output
 
 Usage:
     python -m nbsearch_mcp.server                                  # stdio
@@ -12,9 +12,11 @@ Usage:
 
 from __future__ import annotations
 
+import itertools
 import json
 import os
 
+from cachetools import TTLCache
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
@@ -27,134 +29,214 @@ mcp = FastMCP(
     instructions="""\
 This server searches and retrieves Jupyter Notebooks stored in Solr and S3.
 
-## Query syntax
+## Search parameters
 
-Queries use Solr query syntax. A bare keyword searches the default full-text
-field (_text_), which covers filenames, cell sources, and outputs with Japanese
-tokenization. Use field:value to target specific fields.
+search_notebooks and search_cells accept structured parameters (all optional,
+combined with AND):
 
-### search_notebooks fields
+  phrase    — phrase search across all fields (code, markdown, outputs)
+  code      — phrase search within code cells
+  markdown  — phrase search within markdown cells
+  owner     — filter by notebook owner
+  filename  — filter by notebook filename
+  date_from — modified since (YYYY-MM-DD)
+  date_to   — modified until (YYYY-MM-DD)
+  freetext  — raw Solr query for advanced use (combined via AND with above)
 
-  filename           — notebook filename (exact string)
-  owner              — notebook owner
-  server             — Jupyter server URL
-  mtime / ctime      — modified/created time (date range: [2024-01-01T00:00:00Z TO *])
-  source__code       — code cell content (standard tokenizer)
-  source__markdown   — markdown cell content (Japanese tokenizer)
-  source__markdown__heading    — all headings
-  source__markdown__heading_1  — h1 headings (also _2 through _6)
-  source__markdown__hashtags   — hashtags (e.g. #pandas, #データ分析)
-  source__markdown__url        — URLs in markdown
-  outputs            — all cell outputs
-  outputs__stdout    — stdout output
-  outputs__stderr    — stderr output
-  lc_notebook_meme__current — notebook MEME ID (UUID, lineage tracking)
-  lc_cell_memes      — all cell MEME IDs in the notebook
+search_cells additionally accepts:
+  cell_type — "code" or "markdown"
 
-### search_cells fields
+### freetext (advanced)
 
-  cell_type          — "code" or "markdown"
-  notebook_filename  — parent notebook filename
-  notebook_owner     — parent notebook owner
-  notebook_mtime     — parent notebook modified time
-  source__code       — code cell source
-  source__markdown   — markdown cell source
-  source__markdown__heading_1  — h1 in cell (also _2 through _6)
-  source__markdown__hashtags   — hashtags in cell
-  outputs__stdout    — stdout
-  outputs__stderr    — stderr
-  execution_count    — cell execution count
-  estimated_mtime    — cell modification time estimate
-  lc_cell_meme__current   — cell MEME ID (UUID, lineage tracking)
-  lc_cell_meme__previous  — MEME of the preceding cell
-  lc_cell_meme__next      — MEME of the following cell
+The freetext parameter accepts raw Solr query syntax for cases not covered
+by structured parameters. Available Solr fields:
 
-### MEME (lineage tracking)
+  Notebook: source__markdown__heading_1 (also _2 through _6),
+    source__markdown__hashtags, source__markdown__url,
+    outputs__stdout, outputs__stderr,
+    lc_notebook_meme__current, lc_cell_memes
+  Cell: lc_cell_meme__current, lc_cell_meme__previous, lc_cell_meme__next,
+    execution_count
+
+### MEME (lineage tracking, use via freetext)
 
 Each notebook and cell has a MEME — a UUID assigned at creation that persists
-through copies. When a notebook is copied to a different environment, branch
-suffixes are appended (e.g. 437c8d0a-...-1-branch1), so use the base UUID
-to find all copies regardless of branching.
+through copies. When copied to a different environment, branch suffixes are
+appended (e.g. 437c8d0a-...-1-branch1). The base UUID matches all copies.
 
-  - Find all notebooks containing a specific cell:
-    search_notebooks with "lc_cell_memes:437c8d0a-0862-11e7-8c9a-0242ac110002"
-  - Find all copies/derivatives of a cell across notebooks:
-    search_cells with "lc_cell_meme__current:437c8d0a-0862-11e7-8c9a-0242ac110002"
-    (the MEME tokenizer matches the base UUID, ignoring branch suffixes)
-  - Find cells adjacent to a known cell in their original notebook:
-    search_cells with "lc_cell_meme__previous:<meme>" or "lc_cell_meme__next:<meme>"
-
-### Examples
-
-  "pandas"                                      — full-text search
-  "source__code:pandas AND owner:yazawa"        — code containing pandas by yazawa
-  "source__markdown__heading_1:設定"             — notebooks with h1 heading matching 設定
-  "source__markdown__hashtags:#データ分析"       — notebooks tagged #データ分析
-  "mtime:[2024-01-01T00:00:00Z TO *]"           — modified since 2024
-  "cell_type:code AND outputs__stderr:Error"    — code cells with errors
+  freetext="lc_cell_memes:437c8d0a-0862-11e7-8c9a-0242ac110002"
+    → find notebooks containing a specific cell
+  freetext="lc_cell_meme__current:437c8d0a-0862-11e7-8c9a-0242ac110002"
+    → find all copies of a cell across notebooks
 
 ## Usage flow
 
-Use tools in this order — overview first, then drill down:
+1. search_notebooks / search_cells — find notebooks or cells.
+   search_notebooks returns each notebook with its table of contents.
+   Each TOC entry has a "ref" (e.g. "s0", "s3").
+2. get_notebook(ref="s3") — read section content using the ref from step 1.
+3. get_cell_output — inspect execution output of a specific cell.
 
-1. search_notebooks / search_cells — find notebooks or cells by keyword.
-2. get_notebook_toc — get the table of contents for a notebook.
-3. get_notebook_section — get the full content of a section.
-4. get_cell_output — get detailed execution output of a specific cell.
-
-Always start broad (search/toc) before requesting full content (section/output).
+Always start with search before requesting full content.
 """,
 )
 
 _config = load_config()
 _db = NBSearchDB(_config)
 
+# ref -> (notebook_id, cell_index) mapping, TTL 1 hour
+_section_refs: TTLCache = TTLCache(maxsize=4096, ttl=3600)
+_ref_counter = itertools.count()
+
+
+def _register_ref(notebook_id: str, cell_index: int) -> str:
+    ref = f"s{next(_ref_counter)}"
+    _section_refs[ref] = (notebook_id, cell_index)
+    return ref
+
 
 # ---- Layer 0: Search (entry point) -----------------------------------
 
 
-def _pick_notebook_fields(doc: dict) -> dict:
-    """Return only the fields useful for an overview."""
+async def _notebook_summary(doc: dict, cell_query: str | None = None) -> dict:
+    """Build a notebook summary with TOC and matching cells."""
+    notebook_id = doc["id"]
+    notebook = await _db.download_notebook(notebook_id)
+    cells = notebook["cells"]
+    toc = build_toc(notebook)
+    for entry in toc:
+        entry["ref"] = _register_ref(notebook_id, entry["cell_index"])
+
+    matching_cells: list[dict] = []
+    if cell_query and cell_query != "*:*":
+        q = f'notebook_id:"{notebook_id}" AND {cell_query}'
+        result = await _db.query_cells(q, rows=3, sort="estimated_mtime desc")
+        for cdoc in result["response"]["docs"]:
+            source = cdoc.get("source__code") or cdoc.get("source__markdown") or ""
+            lines = source.split("\n") if source else []
+            preview = "\n".join(lines[:5])
+            if len(lines) > 5:
+                preview += "\n..."
+            matching_cells.append({
+                "cell_type": cdoc["cell_type"],
+                "index": cdoc["index"],
+                "source_preview": preview,
+            })
+
     return {
-        "id": doc["id"],
         "filename": doc["filename"],
         "owner": doc.get("owner"),
         "server": doc.get("server"),
         "mtime": doc.get("mtime"),
-        "headings": doc.get("source__markdown__heading", ""),
+        "ctime": doc.get("ctime"),
+        "atime": doc.get("atime"),
+        "lc_notebook_meme__current": doc.get("lc_notebook_meme__current"),
+        "operation_note": doc.get("source__markdown__operation_note"),
+        "about": doc.get("source__markdown__about"),
+        "cell_count": len(cells),
+        "code_cell_count": sum(1 for c in cells if c["cell_type"] == "code"),
+        "toc": toc,
+        "matching_cells": matching_cells,
     }
+
+
+_NOTEBOOK_FIELDS = {
+    "owner": "owner",
+    "filename": "filename",
+    "mtime": "mtime",
+}
+
+_CELL_FIELDS = {
+    "owner": "notebook_owner",
+    "filename": "notebook_filename",
+    "mtime": "estimated_mtime",
+}
+
+
+def _build_query(
+    *,
+    fields: dict[str, str],
+    phrase: str | None = None,
+    code: str | None = None,
+    markdown: str | None = None,
+    owner: str | None = None,
+    filename: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    freetext: str | None = None,
+) -> str:
+    """Build a Solr query from structured parameters."""
+    parts: list[str] = []
+    if phrase:
+        parts.append(f'"{phrase}"')
+    if code:
+        parts.append(f'source__code:"{code}"')
+    if markdown:
+        parts.append(f'source__markdown:"{markdown}"')
+    if owner:
+        parts.append(f"{fields['owner']}:{owner}")
+    if filename:
+        parts.append(f'{fields["filename"]}:"{filename}"')
+    if date_from or date_to:
+        fr = f"{date_from}T00:00:00Z" if date_from else "*"
+        to = f"{date_to}T23:59:59Z" if date_to else "*"
+        parts.append(f"{fields['mtime']}:[{fr} TO {to}]")
+    if freetext:
+        parts.append(freetext)
+    return " AND ".join(parts) if parts else "*:*"
 
 
 @mcp.tool()
 async def search_notebooks(
-    query: str,
-    q_op: str = "AND",
+    phrase: str | None = None,
+    code: str | None = None,
+    markdown: str | None = None,
+    owner: str | None = None,
+    filename: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    freetext: str | None = None,
     start: int = 0,
-    limit: int = 10,
+    limit: int = 20,
     sort: str = "mtime desc",
 ) -> str:
-    """Search notebooks by keyword. Accepts Solr query syntax.
+    """Search notebooks. All parameters are optional and combined with AND.
 
-    Examples:
-      - "pandas"                                           : full-text search
-      - "source__code:pandas"                              : search within code cells
-      - "owner:yazawa"                                     : filter by owner
-      - "mtime:[2025-01-01T00:00:00Z TO *]"               : modified since 2025
-      - "mtime:[2025-04-01T00:00:00Z TO 2025-04-30T23:59:59Z]" : modified in April 2025
-      - "source__code:pandas AND mtime:[2025-01-01T00:00:00Z TO *]" : combine conditions
+    Structured parameters (phrase search):
+      - phrase    : phrase search across all fields (code, markdown, outputs)
+      - code      : phrase search within code cells
+      - markdown  : phrase search within markdown cells
+      - owner     : filter by notebook owner (token search, handles name variants)
+      - filename  : filter by notebook filename
+      - date_from : modified since (YYYY-MM-DD)
+      - date_to   : modified until (YYYY-MM-DD)
 
-    Date fields: mtime (modified), ctime (created). Format: YYYY-MM-DDThh:mm:ssZ
+    Free-text parameter (raw Solr query, token-split search):
+      - freetext  : raw Solr query, combined with other parameters via AND
+
     Results are sorted by modification time (newest first) by default.
-    Returns lightweight overview only (id, filename, owner, headings).
-    Drill down via get_notebook_toc → get_notebook_section for details.
+    Returns each notebook with its table of contents (heading hierarchy,
+    code cell counts, preview). Use get_notebook to read a section.
     """
+    query = _build_query(
+        fields=_NOTEBOOK_FIELDS,
+        phrase=phrase, code=code, markdown=markdown,
+        owner=owner, filename=filename,
+        date_from=date_from, date_to=date_to, freetext=freetext,
+    )
+    cell_query = _build_query(
+        fields=_CELL_FIELDS,
+        phrase=phrase, code=code, markdown=markdown,
+        date_from=date_from, date_to=date_to, freetext=freetext,
+    )
     result = await _db.query_notebooks(
-        query, q_op=q_op, start=start, rows=limit, sort=sort,
+        query, start=start, rows=limit, sort=sort,
     )
     response = result["response"]
+    notebooks = [await _notebook_summary(d, cell_query) for d in response["docs"]]
     return json.dumps(
         {
-            "notebooks": [_pick_notebook_fields(d) for d in response["docs"]],
+            "notebooks": notebooks,
             "numFound": response["numFound"],
             "start": start,
         },
@@ -181,25 +263,51 @@ def _pick_cell_fields(doc: dict) -> dict:
 
 @mcp.tool()
 async def search_cells(
-    query: str,
-    q_op: str = "AND",
+    phrase: str | None = None,
+    code: str | None = None,
+    markdown: str | None = None,
+    cell_type: str | None = None,
+    owner: str | None = None,
+    filename: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    freetext: str | None = None,
     start: int = 0,
-    limit: int = 10,
+    limit: int = 20,
     sort: str = "estimated_mtime desc",
 ) -> str:
-    """Search at cell level. Can search code and markdown cells individually.
+    """Search at cell level. All parameters are optional and combined with AND.
 
-    Examples:
-      - "cell_type:code AND source__code:pandas"
-      - "source__markdown__heading_1:Setup"
-      - "cell_type:code AND estimated_mtime:[2025-01-01T00:00:00Z TO *]" : recent code cells
+    Structured parameters (phrase search):
+      - phrase    : phrase search across all cell fields
+      - code      : phrase search within code cells
+      - markdown  : phrase search within markdown cells
+      - cell_type : "code" or "markdown"
+      - owner     : filter by notebook owner (token search)
+      - filename  : filter by notebook filename
+      - date_from : modified since (YYYY-MM-DD)
+      - date_to   : modified until (YYYY-MM-DD)
 
-    Date field: estimated_mtime. Format: YYYY-MM-DDThh:mm:ssZ
+    Free-text parameter (raw Solr query, token-split search):
+      - freetext  : raw Solr query, combined with other parameters via AND
+
     Results are sorted by estimated modification time (newest first) by default.
-    Returns first 5 lines of source only. Use get_notebook_section for full content.
+    Returns first 5 lines of source only. Use get_notebook for full content.
     """
+    base = _build_query(
+        fields=_CELL_FIELDS,
+        phrase=phrase, code=code, markdown=markdown,
+        owner=owner, filename=filename,
+        date_from=date_from, date_to=date_to, freetext=freetext,
+    )
+    parts: list[str] = []
+    if base != "*:*":
+        parts.append(base)
+    if cell_type:
+        parts.append(f"cell_type:{cell_type}")
+    query = " AND ".join(parts) if parts else "*:*"
     result = await _db.query_cells(
-        query, q_op=q_op, start=start, rows=limit, sort=sort,
+        query, start=start, rows=limit, sort=sort,
     )
     response = result["response"]
     return json.dumps(
@@ -212,67 +320,27 @@ async def search_cells(
     )
 
 
-# ---- Layer 1: TOC (overview) -----------------------------------------
+# ---- Section (narrative detail) ----------------------------------------
 
 
 @mcp.tool()
-async def get_notebook_toc(notebook_id: str) -> str:
-    """Get the table of contents of a notebook.
-
-    Returns heading hierarchy, code cell count per section, and preview text.
-    Use this to understand the overall structure, then drill down into
-    specific sections via get_notebook_section.
-    """
-    notebook = await _db.download_notebook(notebook_id)
-    toc = build_toc(notebook)
-
-    filename = notebook_id.rsplit("_", 1)[-1] if "_" in notebook_id else notebook_id
-    cells = notebook["cells"]
-    cell_count = len(cells)
-    code_cell_count = sum(1 for c in cells if c["cell_type"] == "code")
-
-    return json.dumps(
-        {
-            "notebook_id": notebook_id,
-            "filename": filename,
-            "cell_count": cell_count,
-            "code_cell_count": code_cell_count,
-            "toc": toc,
-        },
-        ensure_ascii=False,
-    )
-
-
-# ---- Layer 2: Section (narrative detail) ------------------------------
-
-
-@mcp.tool()
-async def get_notebook_section(
-    notebook_id: str,
-    heading: str | None = None,
-    cell_index: int | None = None,
+async def get_notebook(
+    ref: str,
 ) -> str:
-    """Get cells of a specific section, preserving narrative structure.
+    """Get notebook content for a section identified by ref.
 
-    Specify by heading (substring match) or cell_index.
-    Returns markdown and code cells together. Code cell outputs are
-    summarized only. Use get_cell_output for full output detail.
-
-    Examples:
-      - get_notebook_section(notebook_id="...", heading="Data Preprocessing")
-      - get_notebook_section(notebook_id="...", cell_index=5)
+    Pass the ref from a search_notebooks TOC entry (e.g. "s0", "s3").
+    Returns all cells from the heading to the next heading of equal or
+    higher level: markdown cells with full source, code cells with full
+    source and output summary (type, size, preview).
+    Use get_cell_output for full execution output.
     """
-    if heading is None and cell_index is None:
-        return json.dumps({"error": "Either heading or cell_index must be provided"})
-
+    notebook_id, cell_index = _section_refs[ref]  # KeyError if expired/invalid
     notebook = await _db.download_notebook(notebook_id)
-    cells = extract_section(notebook, heading=heading, cell_index=cell_index)
-
-    if not cells:
-        return json.dumps({"error": "No matching section found"})
-
+    cells = extract_section(notebook, cell_index=cell_index)
     return json.dumps(
         {
+            "ref": ref,
             "notebook_id": notebook_id,
             "cells": cells,
         },

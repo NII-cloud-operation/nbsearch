@@ -9,10 +9,18 @@ import io
 import json
 from urllib.parse import urlencode, urljoin
 
+import os
+
 import aioboto3
 import httpx
+from cachetools import TTLCache
 
 from .config import Config
+
+_notebook_cache: TTLCache = TTLCache(
+    maxsize=int(os.environ.get("NOTEBOOK_CACHE_SIZE", "32")),
+    ttl=3600,
+)
 
 
 class NBSearchDB:
@@ -61,6 +69,9 @@ class NBSearchDB:
     # ---- S3 -----------------------------------------------------------
 
     async def download_notebook(self, notebook_id: str) -> dict:
+        cached = _notebook_cache.get(notebook_id)
+        if cached is not None:
+            return cached
         s3cfg = self._cfg.s3
         session = aioboto3.Session(
             aws_access_key_id=s3cfg.access_key,
@@ -71,4 +82,6 @@ class NBSearchDB:
         async with session.client("s3", endpoint_url=s3cfg.endpoint_url) as s3:
             await s3.download_fileobj(s3cfg.bucket_name, notebook_id, buf)
         buf.seek(0)
-        return json.loads(buf.read().decode("utf-8"))
+        notebook = json.loads(buf.read().decode("utf-8"))
+        _notebook_cache[notebook_id] = notebook
+        return notebook
