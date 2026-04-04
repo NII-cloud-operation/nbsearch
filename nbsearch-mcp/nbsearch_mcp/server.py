@@ -25,7 +25,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 
 from .config import load_config
 from .db import NBSearchDB
-from .notebook import build_toc, extract_section, get_cell_output as _get_cell_output
+from .notebook import build_toc
 
 logger = logging.getLogger(__name__)
 
@@ -46,32 +46,10 @@ mcp = FastMCP(
     instructions="""\
 This server searches and retrieves Jupyter Notebooks stored in Solr and S3.
 
-## Search parameters
+1. search_notebooks — find notebooks. Returns TOC and matching_cells, each with "ref".
+2. search_cells(ref="s3") — read cells using a ref from step 1. Returns full source and outputs.
 
-search_notebooks and search_cells accept structured parameters (all optional,
-combined with AND). All text parameters use token-split search (words are
-matched independently).
-
-  text      — search across all fields (code, markdown, outputs)
-  code      — search within code cells
-  markdown  — search within markdown cells
-  owner     — filter by notebook owner
-  filename  — filter by notebook filename
-  date_from — modified since (YYYY-MM-DD)
-  date_to   — modified until (YYYY-MM-DD)
-
-search_cells additionally accepts:
-  cell_type — "code" or "markdown"
-
-## Usage flow
-
-1. search_notebooks / search_cells — find notebooks or cells.
-   search_notebooks returns each notebook with its table of contents.
-   Each TOC entry has a "ref" (e.g. "s0", "s3").
-2. get_notebook(ref="s3") — read section content using the ref from step 1.
-3. get_cell_output — inspect execution output of a specific cell.
-
-Always start with search before requesting full content.
+Always start with search_notebooks.
 """,
 )
 
@@ -154,19 +132,23 @@ def _build_query(
     text: str | None = None,
     code: str | None = None,
     markdown: str | None = None,
+    exact: bool = False,
     owner: str | None = None,
     filename: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
 ) -> str:
     """Build a Solr query from structured parameters."""
+    def _q(value: str) -> str:
+        return f'"{value}"' if exact else value
+
     parts: list[str] = []
     if text:
-        parts.append(text)
+        parts.append(_q(text))
     if code:
-        parts.append(f"source__code:({code})")
+        parts.append(f"source__code:{_q(code)}")
     if markdown:
-        parts.append(f"source__markdown:({markdown})")
+        parts.append(f"source__markdown:{_q(markdown)}")
     if owner:
         parts.append(f"{fields['owner']}:{owner}")
     if filename:
@@ -181,6 +163,7 @@ def _build_query(
 @mcp.tool()
 @_log_elapsed
 async def search_notebooks(
+    exact: bool,
     text: str | None = None,
     code: str | None = None,
     markdown: str | None = None,
@@ -192,8 +175,11 @@ async def search_notebooks(
     limit: int = 10,
     sort: str = "mtime desc",
 ) -> str:
-    """Search notebooks. All parameters are optional and combined with AND.
+    """Search notebooks. Parameters are combined with AND.
 
+      - exact     : (required) if true, text/code/markdown match exact phrase
+                    (use true for hyphenated terms like "cloudop-users",
+                     use false for natural language queries)
       - text      : search across all fields (code, markdown, outputs)
       - code      : search within code cells
       - markdown  : search within markdown cells
@@ -203,18 +189,17 @@ async def search_notebooks(
       - date_to   : modified until (YYYY-MM-DD)
 
     Results are sorted by modification time (newest first) by default.
-    Returns each notebook with its table of contents (heading hierarchy,
-    code cell counts, preview). Use get_notebook to read a section.
+    Returns each notebook with its table of contents and matching cells.
     """
     query = _build_query(
         fields=_NOTEBOOK_FIELDS,
-        text=text, code=code, markdown=markdown,
+        text=text, code=code, markdown=markdown, exact=exact,
         owner=owner, filename=filename,
         date_from=date_from, date_to=date_to,
     )
     cell_query = _build_query(
         fields=_CELL_FIELDS,
-        text=text, code=code, markdown=markdown,
+        text=text, code=code, markdown=markdown, exact=exact,
         date_from=date_from, date_to=date_to,
     )
     result = await _db.query_notebooks(
@@ -233,26 +218,27 @@ async def search_notebooks(
     )
 
 
-def _pick_cell_fields(doc: dict) -> dict:
-    """Return lightweight cell summary for search results."""
-    source = doc.get("source__code") or doc.get("source__markdown") or ""
-    lines = source.split("\n") if source else []
-    preview = "\n".join(lines[:5])
-    if len(lines) > 5:
-        preview += "\n..."
-    return {
-        "id": doc["id"],
+def _cell_detail(doc: dict) -> dict:
+    """Extract full cell content from a Solr cell document."""
+    result = {
         "notebook_id": doc["notebook_id"],
         "notebook_filename": doc["notebook_filename"],
         "cell_type": doc["cell_type"],
         "index": doc["index"],
-        "source_preview": preview,
+        "source": doc.get("source__code") or doc.get("source__markdown") or "",
     }
+    # Include outputs if present
+    for key in ("outputs__stdout", "outputs__stderr", "outputs__result_plain"):
+        val = doc.get(key)
+        if val:
+            result[key] = val
+    return result
 
 
 @mcp.tool()
 @_log_elapsed
 async def search_cells(
+    exact: bool,
     ref: str | None = None,
     text: str | None = None,
     code: str | None = None,
@@ -263,13 +249,16 @@ async def search_cells(
     date_from: str | None = None,
     date_to: str | None = None,
     start: int = 0,
-    limit: int = 10,
+    limit: int = 5,
     sort: str = "estimated_mtime desc",
 ) -> str:
-    """Search at cell level. All parameters are optional and combined with AND.
+    """Search cells and return full content. Parameters are combined with AND.
 
-      - ref       : ref from search_notebooks matching_cells — scopes search
-                    to cells around that position in the same notebook
+      - exact     : (required) if true, text/code/markdown match exact phrase
+                    (use true for hyphenated terms like "cloudop-users",
+                     use false for natural language queries)
+      - ref       : ref from search_notebooks TOC or matching_cells — scopes to
+                    cells around that position in the same notebook
       - text      : search across all cell fields
       - code      : search within code cells
       - markdown  : search within markdown cells
@@ -279,16 +268,11 @@ async def search_cells(
       - date_from : modified since (YYYY-MM-DD)
       - date_to   : modified until (YYYY-MM-DD)
 
-    When ref is provided, returns cells from the same notebook near that
-    position (limit cells centered around the ref). Other parameters can
-    be combined to further filter.
-
-    Results are sorted by estimated modification time (newest first) by default.
-    Returns first 5 lines of source only. Use get_notebook for full content.
+    Returns full source and outputs (stdout, stderr, result) for each cell.
     """
     base = _build_query(
         fields=_CELL_FIELDS,
-        text=text, code=code, markdown=markdown,
+        text=text, code=code, markdown=markdown, exact=exact,
         owner=owner, filename=filename,
         date_from=date_from, date_to=date_to,
     )
@@ -309,7 +293,7 @@ async def search_cells(
         query, start=start, rows=limit, sort="index asc" if ref else sort,
     )
     response = result["response"]
-    cells = [_pick_cell_fields(d) for d in response["docs"]]
+    cells = [_cell_detail(d) for d in response["docs"]]
     return json.dumps(
         {
             "cells": cells,
@@ -319,54 +303,6 @@ async def search_cells(
         },
         ensure_ascii=False,
     )
-
-
-# ---- Section (narrative detail) ----------------------------------------
-
-
-@mcp.tool()
-@_log_elapsed
-async def get_notebook(
-    ref: str,
-) -> str:
-    """Get notebook content for a section identified by ref.
-
-    Pass the ref from a search_notebooks TOC entry (e.g. "s0", "s3").
-    Returns all cells from the heading to the next heading of equal or
-    higher level: markdown cells with full source, code cells with full
-    source and output summary (type, size, preview).
-    Use get_cell_output for full execution output.
-    """
-    notebook_id, cell_index = _section_refs[ref]  # KeyError if expired/invalid
-    notebook = await _db.download_notebook(notebook_id)
-    cells = extract_section(notebook, cell_index=cell_index)
-    return json.dumps(
-        {
-            "ref": ref,
-            "notebook_id": notebook_id,
-            "cells": cells,
-        },
-        ensure_ascii=False,
-    )
-
-
-# ---- Layer 3: Cell output (deepest detail) ---------------------------
-
-
-@mcp.tool()
-@_log_elapsed
-async def get_cell_output(
-    notebook_id: str,
-    cell_index: int,
-) -> str:
-    """Get full execution output of a specific cell.
-
-    Returns stdout/stderr, execution results, and error tracebacks as text.
-    Binary outputs (images, etc.) are reported as MIME type and size only.
-    """
-    notebook = await _db.download_notebook(notebook_id)
-    result = _get_cell_output(notebook, cell_index)
-    return json.dumps(result, ensure_ascii=False)
 
 
 # ---- Entry point ------------------------------------------------------
