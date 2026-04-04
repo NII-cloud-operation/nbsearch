@@ -237,6 +237,7 @@ async def search_notebooks(
     return json.dumps(
         {
             "notebooks": notebooks,
+            "returned": len(notebooks),
             "numFound": response["numFound"],
             "start": start,
         },
@@ -310,9 +311,11 @@ async def search_cells(
         query, start=start, rows=limit, sort=sort,
     )
     response = result["response"]
+    cells = [_pick_cell_fields(d) for d in response["docs"]]
     return json.dumps(
         {
-            "cells": [_pick_cell_fields(d) for d in response["docs"]],
+            "cells": cells,
+            "returned": len(cells),
             "numFound": response["numFound"],
             "start": start,
         },

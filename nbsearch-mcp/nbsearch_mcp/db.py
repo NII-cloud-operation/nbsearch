@@ -62,8 +62,11 @@ class NBSearchDB:
             resp = await client.get(url, auth=self._solr_auth())
             resp.raise_for_status()
             data = resp.json()
-            num_found = data["response"]["numFound"]
-            logger.info("query %s q=%s numFound=%d", core, query, num_found)
+            response = data["response"]
+            logger.info(
+                "query %s q=%s returned=%d numFound=%d",
+                core, query, len(response["docs"]), response["numFound"],
+            )
             return data
 
     async def query_notebooks(self, query: str, **kwargs) -> dict:
