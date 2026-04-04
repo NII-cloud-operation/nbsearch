@@ -7,7 +7,10 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 from urllib.parse import urlencode, urljoin
+
+logger = logging.getLogger(__name__)
 
 import os
 
@@ -58,7 +61,10 @@ class NBSearchDB:
         async with httpx.AsyncClient() as client:
             resp = await client.get(url, auth=self._solr_auth())
             resp.raise_for_status()
-            return resp.json()
+            data = resp.json()
+            num_found = data["response"]["numFound"]
+            logger.info("query %s q=%s numFound=%d", core, query, num_found)
+            return data
 
     async def query_notebooks(self, query: str, **kwargs) -> dict:
         return await self.query(self._cfg.solr.notebook_core, query, **kwargs)
