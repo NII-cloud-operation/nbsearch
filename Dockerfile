@@ -1,6 +1,6 @@
-FROM solr:8 AS solr
+FROM solr:10 AS solr
 
-FROM quay.io/jupyter/scipy-notebook:notebook-7.5.0
+FROM quay.io/jupyter/scipy-notebook:notebook-7.5.5
 
 USER root
 
@@ -9,7 +9,7 @@ RUN mamba remove -n base -y nbclassic && mamba clean --all -f -y
 
 # Install OpenJDK and lsyncd
 RUN apt-get update && apt-get install -yq supervisor lsyncd uuid-runtime \
-    openjdk-11-jre gnupg curl tinyproxy netcat-openbsd \
+    openjdk-21-jre gnupg curl tinyproxy netcat-openbsd \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -29,7 +29,7 @@ RUN mkdir -p /var/solr
 COPY --from=solr /var/solr /var/solr
 ENV SOLR_USER="jovyan" \
     SOLR_GROUP="users" \
-    PATH="/opt/solr/bin:/opt/docker-solr/scripts:$PATH" \
+    PATH="/opt/solr/bin:/opt/solr/docker/scripts:$PATH" \
     SOLR_INCLUDE=/etc/default/solr.in.sh \
     SOLR_HOME=/var/solr/data \
     SOLR_PID_DIR=/var/solr \
@@ -78,6 +78,7 @@ RUN mkdir -p /opt/nbsearch/original/bin/ && \
     cp /tmp/nbsearch/example/jupyter-lab /opt/conda/bin/ && \
     cp /tmp/nbsearch/example/run-hook.sh /opt/nbsearch/bin/ && \
     cp /tmp/nbsearch/example/build-index.sh /opt/nbsearch/bin/ && \
+    cp /tmp/nbsearch/example/start-solr.sh /opt/nbsearch/bin/ && \
     chmod +x /opt/conda/bin/jupyterhub-singleuser /opt/conda/bin/jupyter-notebook /opt/conda/bin/jupyter-lab \
         /opt/nbsearch/bin/*.sh
 
@@ -96,9 +97,5 @@ RUN mkdir -p /home/$NB_USER/.nbsearch && \
     cp -fr /tmp/nbsearch/example/notebooks/* /home/$NB_USER/ && \
     cp /tmp/nbsearch/images/* /home/$NB_USER/images/ && \
     cp /tmp/nbsearch/README.md /home/$NB_USER/
-
-# Create Solr schema
-RUN precreate-core jupyter-notebook /opt/nbsearch/solr/jupyter-notebook/ && \
-    precreate-core jupyter-cell /opt/nbsearch/solr/jupyter-cell/
 
 VOLUME /var/solr /var/minio
