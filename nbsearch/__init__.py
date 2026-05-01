@@ -28,19 +28,6 @@ def _jupyter_labextension_paths():
     }]
 
 
-# nbextension
-def _jupyter_nbextension_paths():
-    notebook_ext = dict(section='notebook',
-                        src='nbextension',
-                        dest='nbsearch',
-                        require='nbsearch/notebook')
-    tree_ext = dict(section='tree',
-                    src='nbextension',
-                    dest='nbsearch',
-                    require='nbsearch/tree')
-    return [notebook_ext, tree_ext]
-
-
 # server extension
 def _jupyter_server_extension_paths():
     return [dict(module='nbsearch')]

@@ -41,7 +41,7 @@ def get_api_handlers(parent_app, base_dir):
 
 
 def register_routes(nb_server_app, web_app):
-    from notebook.utils import url_path_join
+    from jupyter_server.utils import url_path_join
     base_dir = _get_root_dir(nb_server_app)
     nb_server_app.log.info(f'nbsearch extension: base_dir={base_dir}')
     api_handlers = get_api_handlers(nb_server_app, base_dir)

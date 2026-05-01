@@ -43,12 +43,6 @@ To use nbsearch extension, you will also need to install and enable. You can use
 ```
 jupyter server extension enable nbsearch
 jupyter labextension enable nbsearch
-
-# If you want to use the extension with the classic notebook,
-# you need to install and enable the nbclassic notebook extension.
-jupyter nbclassic-extension install --py --sys-prefix nbsearch
-jupyter nbclassic-serverextension enable --py --sys-prefix nbsearch
-jupyter nbclassic-extension enable --py --sys-prefix nbsearch
 ```
 
 To compare multiple Notebooks, you need to install [Jupyter-LC_notebook_diff](https://github.com/NII-cloud-operation/Jupyter-LC_notebook_diff), as shown below.
@@ -56,10 +50,6 @@ To compare multiple Notebooks, you need to install [Jupyter-LC_notebook_diff](ht
 ```
 pip install git+https://github.com/NII-cloud-operation/Jupyter-LC_notebook_diff.git@feature/lab
 jupyter labextension enable lc_notebook_diff
-
-# If you want to use the extension with the classic notebook,
-# you need to install and enable the nbclassic notebook extension.
-jupyter nbclassic-extension enable --py --sys-prefix lc_notebook_diff
 ```
 
 then restart Jupyter notebook.

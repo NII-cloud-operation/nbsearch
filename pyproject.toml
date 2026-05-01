@@ -46,6 +46,7 @@ exclude = [".github", "binder"]
 [tool.hatch.build.targets.wheel.shared-data]
 "nbsearch/labextension" = "share/jupyter/labextensions/nbsearch"
 "install.json" = "share/jupyter/labextensions/nbsearch/install.json"
+"jupyter-config/server-config/nbsearch.json" = "etc/jupyter/jupyter_server_config.d/nbsearch.json"
 
 [tool.hatch.build.hooks.version]
 path = "nbsearch/_version.py"

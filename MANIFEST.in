@@ -1,5 +1,3 @@
-include nbsearch/nbextension/*
-
 include nbsearch/static/css/*
 include nbsearch/static/js/*
 include nbsearch/static/webfonts/*
