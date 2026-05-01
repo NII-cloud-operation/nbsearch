@@ -4,6 +4,9 @@ FROM quay.io/jupyter/scipy-notebook:notebook-7.5.0
 
 USER root
 
+### Remove nbclassic (we use Notebook 7; nbclassic ships unmaintained bundled JS)
+RUN mamba remove -n base -y nbclassic && mamba clean --all -f -y
+
 # Install OpenJDK and lsyncd
 RUN apt-get update && apt-get install -yq supervisor lsyncd uuid-runtime \
     openjdk-11-jre gnupg curl tinyproxy netcat-openbsd \
@@ -42,10 +45,10 @@ RUN mkdir -p /opt/minio/bin/ && \
 
 COPY . /tmp/nbsearch
 RUN pip install -e /tmp/nbsearch && \
-    pip install --no-cache jupyter_nbextensions_configurator \
-        git+https://github.com/NII-cloud-operation/Jupyter-LC_nblineage.git@feature/lab \
-        git+https://github.com/NII-cloud-operation/Jupyter-LC_notebook_diff.git@feature/lab \
-        git+https://github.com/NII-cloud-operation/Jupyter-LC_index.git@feature/lab \
+    pip install --no-cache \
+        git+https://github.com/NII-cloud-operation/Jupyter-LC_nblineage.git@main \
+        git+https://github.com/NII-cloud-operation/Jupyter-LC_notebook_diff.git@main \
+        git+https://github.com/NII-cloud-operation/Jupyter-LC_index.git@main \
         jupyter-server-proxy && \
     jupyter server extension enable --sys-prefix jupyter_server_proxy && \
     jupyter labextension develop /tmp/nbsearch --overwrite && \
@@ -78,11 +81,7 @@ RUN mkdir -p /opt/nbsearch/original/bin/ && \
     chmod +x /opt/conda/bin/jupyterhub-singleuser /opt/conda/bin/jupyter-notebook /opt/conda/bin/jupyter-lab \
         /opt/nbsearch/bin/*.sh
 
-RUN jupyter nbclassic-extension install --py --sys-prefix nbsearch && \
-    jupyter nbclassic-serverextension enable --py --sys-prefix nbsearch && \
-    jupyter nbclassic-extension enable --py --sys-prefix nbsearch && \
-    jupyter nbclassic-extension enable --py --sys-prefix lc_notebook_diff && \
-    jupyter nblineage quick-setup --sys-prefix
+RUN jupyter nblineage quick-setup --sys-prefix
 
 # Configuration for Server Proxy
 RUN cat /tmp/nbsearch/example/jupyter_notebook_config.py >> $CONDA_DIR/etc/jupyter/jupyter_notebook_config.py
