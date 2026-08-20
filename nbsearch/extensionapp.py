@@ -6,7 +6,7 @@ from ._version import __version__
 
 from traitlets.config.application import catch_config_error
 from traitlets.config.application import Application
-from traitlets import Dict, List
+from traitlets import Bool, Dict, List
 
 from .db import UpdateIndexHandler
 
@@ -23,8 +23,13 @@ class UpdateIndexApp(Application):
 
     classes = List([UpdateIndexHandler])
     aliases = Dict({'log-level': 'Application.log_level'})
-    flags = Dict({'debug': ({'Application': {'log_level': 10}},
-                            'Set loglevel to DEBUG')})
+    dry_run = Bool(False, help='List notebooks without updating indices').tag(config=True)
+    flags = Dict({
+        'debug': ({'Application': {'log_level': 10}},
+                  'Set loglevel to DEBUG'),
+        'dry-run': ({'UpdateIndexApp': {'dry_run': True}},
+                    'List notebooks without updating indices'),
+    })
 
     @catch_config_error
     def initialize(self, argv=None):
@@ -38,7 +43,8 @@ class UpdateIndexApp(Application):
         config_path = self.extra_args[0]
         source = self.extra_args[1]
         path = self.extra_args[2] if len(self.extra_args) == 3 else None
-        asyncio.run(self.handler.update(config_path, source, path))
+        asyncio.run(self.handler.update(config_path, source, path,
+                                        dry_run=self.dry_run))
 
 
 class ExtensionApp(Application):
