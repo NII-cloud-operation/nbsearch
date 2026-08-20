@@ -118,7 +118,7 @@ class UpdateIndexHandler(LoggingConfigurable):
     def __init__(self, **kwargs):
         super(UpdateIndexHandler, self).__init__(**kwargs)
 
-    async def update(self, cpath, source_path, path):
+    async def update(self, cpath, source_path, path, dry_run=False):
         self.log.info('updating indices for {}, {}({})'.format(source_path, path, cpath))
         self.config.merge(PyFileConfigLoader(cpath).load_config())
         db = NBSearchDB(config=self.config)
@@ -126,8 +126,12 @@ class UpdateIndexHandler(LoggingConfigurable):
 
         updated = 0
         failed = []
+        dry_run_paths = []
         for file in source.get_files():
             if path is not None and os.path.split(file['path'])[-1] != os.path.split(path)[-1]:
+                continue
+            if dry_run:
+                dry_run_paths.append(file['path'])
                 continue
             try:
                 notebook_data = source.get_notebook(file['server'], file['path'])
@@ -146,6 +150,10 @@ class UpdateIndexHandler(LoggingConfigurable):
             except:
                 self.log.exception('failed to update index for {}'.format(file['path']))
                 failed.append(file)
+        if dry_run:
+            for file_path in sorted(dry_run_paths):
+                print(file_path)
+            return
         self.log.info('finished: {} updates, {} fails'.format(updated, len(failed)))
         if len(failed) > 0:
             raise RuntimeError('Failed to update: {}'.format(','.join([f['path'] for f in failed])))
