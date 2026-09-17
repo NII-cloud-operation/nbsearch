@@ -14,7 +14,7 @@ The following software is installed in this environment.
   - JupyterLab
   - Jupyter Notebook 7
   - [Apache Solr](https://solr.apache.org/)
-  - [MinIO](https://min.io/)
+  - [Garage](https://garagehq.deuxfleurs.fr/)
 
 - Extensions
   - nbsearch
@@ -23,7 +23,7 @@ The following software is installed in this environment.
 
 If you create a Notebook file in this environment, it will be automatically indexed in Solr and you will be able to search for it. Please refer to the [Usage](#usage) section for more information.
 
-> **Note**: It may take some time for Apache Solr and MinIO to start up. If your search fails, please wait a while and try again.
+> **Note**: It may take some time for Apache Solr and Garage to start up. If your search fails, please wait a while and try again.
 
 ## Requirements
 
@@ -71,7 +71,7 @@ You need to install Solr and configure two cores with the following schemas.
 
 ### Prepare S3 compatible storage
 
-You can use AWS S3 or [MinIO](https://min.io/) as your S3 compatible storage. Install if needed.
+You can use AWS S3 or [Garage](https://garagehq.deuxfleurs.fr/) as your S3 compatible storage. Install if needed.
 
 ### Configuring Jupyter Notebook
 
@@ -209,12 +209,12 @@ The `jlpm` command is JupyterLab's pinned version of
 
 #### Local Development with Docker Compose
 
-For local development, you can use Docker Compose to run Solr and MinIO:
+For local development, you can use Docker Compose to run Solr and Garage:
 
 ```bash
 # Clone the repo to your local environment
 # Change directory to the nbsearch directory
-# Start Solr and MinIO
+# Start Solr and Garage
 docker compose up -d
 
 # Install package in development mode
@@ -245,7 +245,7 @@ jupyter nbsearch update-index example/config_docker_compose.py local ./example/n
 jupyter nbsearch update-index example/config_docker_compose.py local
 ```
 
-To stop Solr and MinIO:
+To stop Solr and Garage:
 
 ```bash
 docker compose down
@@ -253,7 +253,7 @@ docker compose down
 
 #### Install without Docker Compose
 
-If you want to set up Solr and MinIO manually:
+If you want to set up Solr and Garage manually:
 
 ```bash
 # Clone the repo to your local environment
