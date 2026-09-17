@@ -28,8 +28,8 @@
     "scripts": {
         "build": "jlpm build:lib && jlpm build:labextension:dev",
         "build:prod": "jlpm clean && jlpm build:lib:prod && jlpm build:labextension",
-        "build:labextension": "jupyter labextension build .",
-        "build:labextension:dev": "jupyter labextension build --development True .",
+        "build:labextension": "jupyter-builder build .",
+        "build:labextension:dev": "jupyter-builder build --development True .",
         "build:lib": "tsc --sourceMap",
         "build:lib:prod": "tsc",
         "clean": "jlpm clean:lib",
@@ -50,7 +50,7 @@
         "test": "jest --coverage",
         "watch": "run-p watch:src watch:labextension",
         "watch:src": "tsc -w --sourceMap",
-        "watch:labextension": "jupyter labextension watch ."
+        "watch:labextension": "jupyter-builder watch ."
     },
     "dependencies": {
         "@emotion/react": "^11.10.5",
@@ -71,7 +71,7 @@
         "yaml": "^2.8.3"
     },
     "devDependencies": {
-        "@jupyterlab/builder": "^4.0.0",
+        "@jupyter/builder": "^1.2.0",
         "@jupyterlab/testutils": "^4.0.0",
         "@types/codemirror": "^5.60.15",
         "@types/jest": "^29.2.0",
