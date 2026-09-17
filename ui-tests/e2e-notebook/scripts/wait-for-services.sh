@@ -2,7 +2,7 @@
 set -euxo pipefail
 
 SOLR_URL="${SOLR_URL:-http://localhost:8983/solr/admin/info/system}"
-MINIO_URL="${MINIO_URL:-http://localhost:9000/minio/health/live}"
+S3_URL="${S3_URL:-http://localhost:9000/healthz}"
 MAX_RETRIES=60
 SLEEP_SECONDS=5
 
@@ -21,17 +21,17 @@ for attempt in $(seq 1 "${MAX_RETRIES}"); do
   fi
 done
 
-echo "Waiting for MinIO..."
+echo "Waiting for SeaweedFS..."
 for attempt in $(seq 1 "${MAX_RETRIES}"); do
-  if curl -vvv --fail --show-error "${MINIO_URL}"; then
-    echo "MinIO is accepting connections at ${MINIO_URL}"
+  if curl -vvv --fail --show-error "${S3_URL}"; then
+    echo "SeaweedFS is accepting connections at ${S3_URL}"
     exit 0
   fi
-  echo "Waiting for MinIO... attempt ${attempt}/${MAX_RETRIES}" >&2
+  echo "Waiting for SeaweedFS... attempt ${attempt}/${MAX_RETRIES}" >&2
   sleep "${SLEEP_SECONDS}"
   if [ "${attempt}" -eq "${MAX_RETRIES}" ]; then
     docker compose ps >&2 || true
-    >&2 echo "Timed out waiting for MinIO at ${MINIO_URL}"
+    >&2 echo "Timed out waiting for SeaweedFS at ${S3_URL}"
     exit 1
   fi
 done

@@ -10,24 +10,23 @@ services:
     volumes:
       - solr_data:/var/solr
 
-  minio:
-    image: minio/minio:latest
-    container_name: nbsearch-minio
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.47
+    container_name: nbsearch-seaweedfs
     ports:
       - "9000:9000"
-      - "9001:9001"
     volumes:
-      - minio_data:/data
+      - seaweedfs_data:/data
     environment:
-      - MINIO_ROOT_USER=nbsearchak
-      - MINIO_ROOT_PASSWORD=nbsearchsk
-    command: server /data --console-address ":9001"
+      - AWS_ACCESS_KEY_ID=nbsearchak
+      - AWS_SECRET_ACCESS_KEY=nbsearchsk
+    command: mini -s3.port=9000 -master.telemetry=false
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/healthz"]
       interval: 10s
       timeout: 5s
       retries: 5
 
 volumes:
   solr_data:
-  minio_data:
+  seaweedfs_data:

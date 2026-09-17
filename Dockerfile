@@ -37,11 +37,11 @@ ENV SOLR_USER="jovyan" \
     LOG4J_PROPS=/var/solr/log4j2.xml
 RUN chown jovyan:users -R /var/solr /run/tinyproxy
 
-# MINIO
-ENV MINIO_ACCESS_KEY=nbsearchak MINIO_SECRET_KEY=nbsearchsk
-RUN mkdir -p /opt/minio/bin/ && \
-    curl -L https://dl.min.io/server/minio/release/linux-amd64/minio > /opt/minio/bin/minio && \
-    chmod +x /opt/minio/bin/minio && mkdir -p /var/minio && chown jovyan:users -R /var/minio
+# SeaweedFS
+ENV SEAWEEDFS_ACCESS_KEY=nbsearchak SEAWEEDFS_SECRET_KEY=nbsearchsk
+RUN mkdir -p /opt/seaweedfs/bin/ && \
+    curl -fsSL https://github.com/seaweedfs/seaweedfs/releases/download/4.47/linux_amd64.tar.gz | tar xz -C /opt/seaweedfs/bin/ && \
+    mkdir -p /var/seaweedfs && chown jovyan:users -R /var/seaweedfs
 
 COPY . /tmp/nbsearch
 RUN pip install -e /tmp/nbsearch && \
@@ -98,4 +98,4 @@ RUN mkdir -p /home/$NB_USER/.nbsearch && \
     cp /tmp/nbsearch/images/* /home/$NB_USER/images/ && \
     cp /tmp/nbsearch/README.md /home/$NB_USER/
 
-VOLUME /var/solr /var/minio
+VOLUME /var/solr /var/seaweedfs
