@@ -37,11 +37,13 @@ ENV SOLR_USER="jovyan" \
     LOG4J_PROPS=/var/solr/log4j2.xml
 RUN chown jovyan:users -R /var/solr /run/tinyproxy
 
-# MINIO
-ENV MINIO_ACCESS_KEY=nbsearchak MINIO_SECRET_KEY=nbsearchsk
-RUN mkdir -p /opt/minio/bin/ && \
-    curl -L https://dl.min.io/server/minio/release/linux-amd64/minio > /opt/minio/bin/minio && \
-    chmod +x /opt/minio/bin/minio && mkdir -p /var/minio && chown jovyan:users -R /var/minio
+# Garage
+ENV GARAGE_DEFAULT_ACCESS_KEY=nbsearchak GARAGE_DEFAULT_SECRET_KEY=nbsearchsecretkey
+ARG TARGETARCH
+RUN case "${TARGETARCH}" in amd64) arch=x86_64 ;; arm64) arch=aarch64 ;; *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; esac && \
+    mkdir -p /opt/garage/bin/ && \
+    curl -fsSL "https://garagehq.deuxfleurs.fr/_releases/v2.4.1/${arch}-unknown-linux-musl/garage" > /opt/garage/bin/garage && \
+    chmod +x /opt/garage/bin/garage && mkdir -p /var/garage && chown jovyan:users -R /var/garage
 
 COPY . /tmp/nbsearch
 RUN pip install -e /tmp/nbsearch && \
@@ -93,9 +95,10 @@ RUN mkdir -p /home/$NB_USER/.nbsearch && \
     cp /tmp/nbsearch/example/config_*.py /home/$NB_USER/.nbsearch/ && \
     mkdir /home/$NB_USER/.nbsearch/conf.d && \
     cp /tmp/nbsearch/example/supervisor.conf /home/$NB_USER/.nbsearch/supervisor.conf && \
+    cp /tmp/nbsearch/example/garage.toml /home/$NB_USER/.nbsearch/garage.toml && \
     cp /tmp/nbsearch/example/update-index.lua /home/$NB_USER/.nbsearch/update-index.lua && \
     cp -fr /tmp/nbsearch/example/notebooks/* /home/$NB_USER/ && \
     cp /tmp/nbsearch/images/* /home/$NB_USER/images/ && \
     cp /tmp/nbsearch/README.md /home/$NB_USER/
 
-VOLUME /var/solr /var/minio
+VOLUME /var/solr /var/garage
