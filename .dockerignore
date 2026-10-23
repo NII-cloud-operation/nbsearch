@@ -47,3 +47,5 @@ junit.xml
 # Other temp directories
 nbsearch-tmp/
 binder/
+# Local nbsearch configuration (git-ignored); it would disable the bundled services in the image
+example/config_local.py
